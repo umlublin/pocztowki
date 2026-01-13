@@ -25,20 +25,13 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px; /* Nieco szerszy kontener dla zdjęć */
             margin: 0 auto;
         }
 
-        /* --- Nagłówek i Wyszukiwarka --- */
-        header {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
-        }
+        /* --- Header i Formularz --- */
+        header { margin-bottom: 30px; text-align: center; }
+        h1 { color: var(--primary-color); margin-bottom: 20px; }
 
         .search-box {
             background: var(--card-bg);
@@ -49,17 +42,20 @@
             gap: 10px;
             flex-wrap: wrap;
             justify-content: center;
+            align-items: center;
         }
 
-        input[type="text"], input[type="number"] {
+        /* Style pól formularza */
+        input[type="text"], input[type="number"], select {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 16px;
+            font-size: 15px;
         }
 
-        input[type="text"] { flex-grow: 1; max-width: 400px; }
-        input[type="number"] { width: 100px; }
+        input[type="text"] { flex-grow: 1; min-width: 200px; }
+        input[type="number"] { width: 80px; }
+        select { min-width: 150px; cursor: pointer; background-color: white; }
 
         button {
             background-color: var(--accent-color);
@@ -69,73 +65,71 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
-            transition: background 0.2s;
+            font-weight: bold;
         }
-
         button:hover { background-color: #2980b9; }
 
         a.reset-btn {
-            display: inline-block;
-            padding: 10px 20px;
+            padding: 10px 15px;
             text-decoration: none;
             color: #7f8c8d;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 14px;
         }
+        a.reset-btn:hover { background-color: #eee; }
 
-        /* --- Tabela Wyników --- */
-        .results-info {
-            margin-bottom: 10px;
-            color: #7f8c8d;
-            font-size: 0.9em;
-        }
-
+        /* --- Tabela --- */
         .table-wrapper {
             overflow-x: auto;
             background: var(--card-bg);
             border-radius: var(--border-radius);
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-top: 20px;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 800px;
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
+        th { background-color: var(--primary-color); color: white; font-weight: 600; }
+        tr:hover { background-color: #f9f9f9; }
+
+        /* --- Obrazki --- */
+        .thumb-container {
+            display: flex;
+            gap: 10px;
         }
-
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        th {
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: 600;
-        }
-
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-
-        /* Tagi i Labelki */
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-
-        .badge-city { background-color: #e8f6f3; color: #1abc9c; }
-        .badge-year { background-color: #fef5e7; color: #f39c12; }
-
-        .empty-state {
+        .thumb-box {
             text-align: center;
-            padding: 50px;
-            color: #95a5a6;
+            font-size: 0.8em;
+            color: #777;
         }
+        .postcard-img {
+            display: block;
+            max-width: 120px;
+            max-height: 120px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 2px;
+            background: #fff;
+            transition: transform 0.2s;
+            cursor: zoom-in;
+        }
+
+        /* Efekt hover na zdjęcie - lekkie powiększenie */
+        .postcard-img:hover {
+            transform: scale(2.5);
+            position: relative;
+            z-index: 100;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border-color: var(--accent-color);
+        }
+
+        /* --- Tagi --- */
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; margin-bottom: 2px;}
+        .badge-city { background-color: #e8f6f3; color: #1abc9c; border: 1px solid #d0ece7; }
+        .badge-year { background-color: #fef5e7; color: #f39c12; }
+        .badge-author { background-color: #ebf5fb; color: #3498db; }
+        .meta-info { font-size: 0.9em; color: #666; }
     </style>
 </head>
 <body>
@@ -145,65 +139,111 @@
         <h1>Archiwum Pocztówek</h1>
 
         <form action="/" method="get" class="search-box">
-            <input type="text" name="q" placeholder="Szukaj (miasto, autor, opis...)" value="{{ search_query }}">
+            <input type="text" name="q" placeholder="Szukaj w opisach..." value="{{ search_query }}">
+
+            <select name="city_id">
+                <option value="">-- Wszystkie miasta --</option>
+                {% for city in all_cities %}
+                    <option value="{{ city.id }}" {% if city.id == city_filter %}selected{% endif %}>
+                        {{ city.name }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <select name="author_id">
+                <option value="">-- Wszyscy autorzy --</option>
+                {% for author in all_authors %}
+                    <option value="{{ author.id }}" {% if author.id == author_filter %}selected{% endif %}>
+                        {{ author.imie_nazwisko }}
+                    </option>
+                {% endfor %}
+            </select>
+
             <input type="number" name="year" placeholder="Rok" value="{{ year_filter }}">
-            <button type="submit">Szukaj</button>
-            {% if search_query or year_filter %}
-                <a href="/" class="reset-btn">Wyczyść</a>
+
+            <button type="submit">Filtruj</button>
+
+            {% if search_query or year_filter or city_filter or author_filter %}
+                <a href="/" class="reset-btn">Resetuj</a>
             {% endif %}
         </form>
     </header>
 
     {% if pocztowki %}
-        <div class="results-info">Znaleziono: {{ pocztowki|length }} rekordów (pokazuję max 100)</div>
+        <div style="margin-bottom: 10px; color: #7f8c8d;">
+            Wyników: <strong>{{ pocztowki|length }}</strong>
+        </div>
 
         <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Miasto</th>
-                        <th>Opis / Tytuł</th>
-                        <th>Nr Wzoru</th>
-                        <th>Rok</th>
-                        <th>Autor</th>
-                        <th>Nakład</th>
+                        <th style="width: 50px;">ID</th>
+                        <th style="width: 280px;">Podgląd</th>
+                        <th>Dane pocztówki</th>
+                        <th>Opis wzoru</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in pocztowki %}
                     <tr>
-                        <td>#{{ p.id }}</td>
+                        <td><strong>{{ p.id }}</strong></td>
                         <td>
-                            {% if p.miasto %}
-                                <span class="badge badge-city">{{ p.miasto }}</span>
-                            {% else %}
-                                <span style="color:#ccc">-</span>
-                            {% endif %}
+                            <div class="thumb-container">
+                                {% if p.awers_id %}
+                                    <div class="thumb-box">
+                                        <a href="/images/{{ p.awers_id }}.jpg" target="_blank">
+                                            <img src="/images/{{ p.awers_id }}.jpg" class="postcard-img" alt="Awers">
+                                        </a>
+                                        <span>Awers</span>
+                                    </div>
+                                {% endif %}
+
+                                {% if p.revers_id %}
+                                    <div class="thumb-box">
+                                        <a href="/images/{{ p.revers_id }}.jpg" target="_blank">
+                                            <img src="/images/{{ p.revers_id }}.jpg" class="postcard-img" alt="Rewers">
+                                        </a>
+                                        <span>Rewers</span>
+                                    </div>
+                                {% endif %}
+
+                                {% if not p.awers_id and not p.revers_id %}
+                                    <span style="color: #ccc; font-style: italic;">Brak zdjęć</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
-                            {{ p.opis_wzoru or "Brak opisu" }}
+                            <div class="meta-info">
+                                {% if p.miasto %}
+                                    Miasto: <span class="badge badge-city">{{ p.miasto }}</span><br>
+                                {% endif %}
+                                {% if p.autor %}
+                                    Autor: <span class="badge badge-author">{{ p.autor }}</span><br>
+                                {% endif %}
+                                {% if p.year %}
+                                    Rok: <span class="badge badge-year">{{ p.year }}</span><br>
+                                {% endif %}
+                                <br>
+                                Wzór: <strong>{{ p.wzor_full }}</strong><br>
+                                Nakład: {{ p.naklad or "-" }}
+                            </div>
+                        </td>
+                        <td>
+                            {{ p.opis_wzoru or "-" }}
                             {% if p.tag %}
-                                <br><small style="color:#999">Tag: {{ p.tag }}</small>
+                                <div style="margin-top:5px; color:#999; font-size:0.85em;">Tagi: {{ p.tag }}</div>
                             {% endif %}
                         </td>
-                        <td><strong>{{ p.wzor_full }}</strong></td>
-                        <td>
-                            {% if p.year %}
-                                <span class="badge badge-year">{{ p.year }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ p.autor or "-" }}</td>
-                        <td>{{ p.naklad or "-" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     {% else %}
-        <div class="empty-state">
-            <h2>Brak wyników</h2>
-            <p>Spróbuj zmienić kryteria wyszukiwania.</p>
+        <div style="text-align: center; padding: 50px; color: #95a5a6;">
+            <h2>Nic nie znaleziono</h2>
+            <p>Zmień filtry i spróbuj ponownie.</p>
         </div>
     {% endif %}
 </div>
