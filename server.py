@@ -24,9 +24,6 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-
-# --- Funkcje pomocnicze do obrazków ---
-
 def ensure_thumb_folder():
     if not os.path.exists(THUMB_FOLDER):
         os.makedirs(THUMB_FOLDER)
@@ -79,6 +76,8 @@ def index():
     year_filter = request.args.get('year', '')
     city_filter = request.args.get('city_id', type=int)
     author_filter = request.args.get('author_id', type=int)
+    wydawca_filter = request.args.get('publisher_id', type=int)
+    wzor_filter = request.args.get('wzor_id', type=int)
 
     conn = get_db()
     cursor = conn.cursor()
@@ -88,6 +87,9 @@ def index():
     all_cities = cursor.fetchall()
     cursor.execute("SELECT id, imie_nazwisko FROM autorzy ORDER BY imie_nazwisko ASC")
     all_authors = cursor.fetchall()
+    cursor.execute("SELECT id, name FROM wydawcy ORDER BY name ASC")
+    all_publishers = cursor.fetchall()
+
 
     sql = """
           SELECT w.id, \
@@ -122,6 +124,12 @@ def index():
     if author_filter:
         sql += " AND wz.author_id = ?"
         params.append(author_filter)
+    if wydawca_filter:
+        sql += " AND wz.numer_wydawcy = ?"
+        params.append(wydawca_filter)
+    if wzor_filter:
+        sql += " AND wz.numer_wzoru = ?"
+        params.append(wzor_filter)
 
     sql += " ORDER BY w.id DESC LIMIT 100"
 
@@ -131,7 +139,7 @@ def index():
     return render_template('index.html', pocztowki=rows,
                            search_query=query, year_filter=year_filter,
                            city_filter=city_filter, author_filter=author_filter,
-                           all_cities=all_cities, all_authors=all_authors)
+                           all_cities=all_cities, all_authors=all_authors, all_publishers=all_publishers)
 
 
 @app.route('/view/<int:card_id>')

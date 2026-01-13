@@ -28,7 +28,7 @@
 
 <div class="container">
     <div class="header-nav">
-        <h1>Wydanie #{{ p.id }}</h1>
+        <h1>Wydanie {{ p.wzor_full }}</h1>
         <a href="/" class="btn-back">← Powrót do listy</a>
     </div>
 
@@ -36,7 +36,7 @@
         <div class="images-section">
             {% if p.awers_id %}
             <div class="image-box">
-                <span class="label">Awers (ID: {{ p.awers_id }})</span>
+                <span class="label">Awers</span>
                 <a href="/images/{{ p.awers_id }}.jpg" target="_blank">
                     <img src="/images/{{ p.awers_id }}.jpg" alt="Awers">
                 </a>
@@ -45,7 +45,7 @@
 
             {% if p.revers_id %}
             <div class="image-box">
-                <span class="label">Rewers (ID: {{ p.revers_id }})</span>
+                <span class="label">Rewers</span>
                 <a href="/images/{{ p.revers_id }}.jpg" target="_blank">
                     <img src="/images/{{ p.revers_id }}.jpg" alt="Rewers">
                 </a>
@@ -57,7 +57,8 @@
             <h2>{{ p.miasto }}</h2>
             <p style="font-size: 1.1em; font-style: italic;">{{ p.opis_wzoru }}</p>
 
-            <div class="data-row"><span class="data-label">Pełny numer:</span> {{ p.wzor_full }}</div>
+            <div class="data-row"><span class="data-label">Numer wydania:</span> {{ p.wzor_full }}</div>
+            <div class="data-row"><span class="data-label">Numer wzoru:</span> {{ p.numer_wydawcy }}-{{ p.numer_wzoru }}</div>
             <div class="data-row"><span class="data-label">Autor:</span> {{ p.autor or "-" }}</div>
             <div class="data-row"><span class="data-label">Rok:</span> {{ p.year }}</div>
             <div class="data-row"><span class="data-label">Nakład:</span> {{ p.naklad or "-" }}</div>
@@ -72,7 +73,7 @@
             <br>
             <div style="background: #eef; padding: 10px; border-radius: 4px; font-size: 0.9em;">
                 <strong>Debug Info:</strong><br>
-                Wzór ID: {{ p.wzor_id }} | Miasto ID: {{ p.city_id }}
+                Wzór ID: {{ p.wzor_id }}
             </div>
         </div>
     </div>

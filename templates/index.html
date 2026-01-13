@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Katalog Pocztówek</title>
+    <title>Katalog Pocztówek województwo lubelskie do 1975</title>
     <style>
         /* (Te same style co wcześniej - skrócone dla czytelności) */
         :root { --primary-color: #2c3e50; --accent-color: #3498db; --bg-color: #f4f7f6; --card-bg: #ffffff; }
@@ -44,17 +44,23 @@
 
 <div class="container">
     <header>
-        <h1 style="text-align:center; color:#2c3e50;">Katalog Pocztówek</h1>
+        <h1 style="text-align:center; color:#2c3e50;">Katalog Pocztówek województwo lubelskie do 1975</h1>
         <form action="/" method="get" class="search-box">
             <input type="text" name="q" placeholder="Szukaj..." value="{{ search_query }}">
+            <select name="publisher_id">
+                <option value="">-- Dowolny wydawca --</option>
+                {% for publisher in all_publishers %}
+                    <option value="{{ publisher.id }}" {% if publisher.id == wydawca_filter %}selected{% endif %}>{{ publisher.name }}</option>
+                {% endfor %}
+            </select>
             <select name="city_id">
-                <option value="">-- Miasto --</option>
+                <option value="">-- Dowolne miasto --</option>
                 {% for city in all_cities %}
                     <option value="{{ city.id }}" {% if city.id == city_filter %}selected{% endif %}>{{ city.name }}</option>
                 {% endfor %}
             </select>
             <select name="author_id">
-                <option value="">-- Autor --</option>
+                <option value="">-- Dowolny autor --</option>
                 {% for author in all_authors %}
                     <option value="{{ author.id }}" {% if author.id == author_filter %}selected{% endif %}>{{ author.imie_nazwisko }}</option>
                 {% endfor %}
@@ -78,7 +84,7 @@
             <tbody>
                 {% for p in pocztowki %}
                 <tr class="clickable-row" onclick="window.location='/view/{{ p.id }}'">
-                    <td>#{{ p.id }}</td>
+                    <td>{{ p.id }}</td>
                     <td>
                         {% if p.awers_id %}
                             <img src="/images/{{ p.awers_id }}_mini.jpg" class="thumb-img" alt="Miniatura">
@@ -90,12 +96,14 @@
                         <div style="font-weight:bold; color:#2c3e50;">{{ p.miasto or "Nieznane miasto" }}</div>
                         <div style="font-size:0.9em; color:#555;">{{ p.opis_wzoru or "Brak opisu" }}</div>
                         {% if p.autor %}
-                            <div style="font-size:0.8em; color:#3498db;">Autor: {{ p.autor }}</div>
+                            <div style="font-size:0.8em;">Autor: {{ p.autor }}</div>
+                        {% else %}
+                            <div style="font-size:0.8em; color:#7f8c8d;">Autor Nieznany</div>
                         {% endif %}
                     </td>
                     <td>
                         <strong>{{ p.wzor_full }}</strong><br>
-                        <span style="font-size:0.85em; color:#7f8c8d;">Rok: {{ p.year }}</span>
+                        <span style="font-size:0.85em; color:#7f8c8d;">rok: {{ "Nieznany" if p.year == 0 else p.year }}</span>
                     </td>
                 </tr>
                 {% endfor %}
