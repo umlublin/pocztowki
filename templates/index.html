@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katalog Pocztówek</title>
+    <style>
+        /* --- Reset i Podstawy --- */
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* --- Nagłówek i Wyszukiwarka --- */
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        input[type="text"] { flex-grow: 1; max-width: 400px; }
+        input[type="number"] { width: 100px; }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #2980b9; }
+
+        a.reset-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            text-decoration: none;
+            color: #7f8c8d;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* --- Tabela Wyników --- */
+        .results-info {
+            margin-bottom: 10px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        /* Tagi i Labelki */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .badge-city { background-color: #e8f6f3; color: #1abc9c; }
+        .badge-year { background-color: #fef5e7; color: #f39c12; }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #95a5a6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Archiwum Pocztówek</h1>
+
+        <form action="/" method="get" class="search-box">
+            <input type="text" name="q" placeholder="Szukaj (miasto, autor, opis...)" value="{{ search_query }}">
+            <input type="number" name="year" placeholder="Rok" value="{{ year_filter }}">
+            <button type="submit">Szukaj</button>
+            {% if search_query or year_filter %}
+                <a href="/" class="reset-btn">Wyczyść</a>
+            {% endif %}
+        </form>
+    </header>
+
+    {% if pocztowki %}
+        <div class="results-info">Znaleziono: {{ pocztowki|length }} rekordów (pokazuję max 100)</div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Miasto</th>
+                        <th>Opis / Tytuł</th>
+                        <th>Nr Wzoru</th>
+                        <th>Rok</th>
+                        <th>Autor</th>
+                        <th>Nakład</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pocztowki %}
+                    <tr>
+                        <td>#{{ p.id }}</td>
+                        <td>
+                            {% if p.miasto %}
+                                <span class="badge badge-city">{{ p.miasto }}</span>
+                            {% else %}
+                                <span style="color:#ccc">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ p.opis_wzoru or "Brak opisu" }}
+                            {% if p.tag %}
+                                <br><small style="color:#999">Tag: {{ p.tag }}</small>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ p.wzor_full }}</strong></td>
+                        <td>
+                            {% if p.year %}
+                                <span class="badge badge-year">{{ p.year }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.autor or "-" }}</td>
+                        <td>{{ p.naklad or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h2>Brak wyników</h2>
+            <p>Spróbuj zmienić kryteria wyszukiwania.</p>
+        </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
