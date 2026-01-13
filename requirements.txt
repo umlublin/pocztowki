@@ -5,3 +5,4 @@ requests>=2.27.1
 flask_sqlalchemy>=2.5.1
 alembic
 waitress
+pillow

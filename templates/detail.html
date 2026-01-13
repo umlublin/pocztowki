@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Pocztówka #{{ p.id }} - {{ p.wzor_full }}</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; color: #333; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+
+        .header-nav { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-back { text-decoration: none; color: white; background: #3498db; padding: 8px 15px; border-radius: 4px; font-size: 14px; }
+        .btn-back:hover { background: #2980b9; }
+
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        @media(max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
+
+        .images-section { text-align: center; }
+        .image-box { margin-bottom: 20px; background: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; }
+        .image-box img { max-width: 100%; height: auto; display: block; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .label { font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 5px; text-transform: uppercase; font-size: 0.8em; }
+
+        .info-section h2 { margin-top: 0; color: #2c3e50; }
+        .data-row { margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .data-label { font-weight: bold; color: #555; width: 120px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-nav">
+        <h1>Wydanie #{{ p.id }}</h1>
+        <a href="/" class="btn-back">← Powrót do listy</a>
+    </div>
+
+    <div class="grid-layout">
+        <div class="images-section">
+            {% if p.awers_id %}
+            <div class="image-box">
+                <span class="label">Awers (ID: {{ p.awers_id }})</span>
+                <a href="/images/{{ p.awers_id }}.jpg" target="_blank">
+                    <img src="/images/{{ p.awers_id }}.jpg" alt="Awers">
+                </a>
+            </div>
+            {% endif %}
+
+            {% if p.revers_id %}
+            <div class="image-box">
+                <span class="label">Rewers (ID: {{ p.revers_id }})</span>
+                <a href="/images/{{ p.revers_id }}.jpg" target="_blank">
+                    <img src="/images/{{ p.revers_id }}.jpg" alt="Rewers">
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="info-section">
+            <h2>{{ p.miasto }}</h2>
+            <p style="font-size: 1.1em; font-style: italic;">{{ p.opis_wzoru }}</p>
+
+            <div class="data-row"><span class="data-label">Pełny numer:</span> {{ p.wzor_full }}</div>
+            <div class="data-row"><span class="data-label">Autor:</span> {{ p.autor or "-" }}</div>
+            <div class="data-row"><span class="data-label">Rok:</span> {{ p.year }}</div>
+            <div class="data-row"><span class="data-label">Nakład:</span> {{ p.naklad or "-" }}</div>
+            <div class="data-row"><span class="data-label">Cenzura:</span> {{ p.cenzura or "-" }} ({{ p.cenzor_full or "-" }})</div>
+            <div class="data-row"><span class="data-label">Tagi:</span> {{ p.tag or "-" }}</div>
+            <div class="data-row"><span class="data-label">Zamówienie:</span> {{ p.zamowienie or "-" }}</div>
+
+            {% if p.wydawca %}
+                <div class="data-row"><span class="data-label">Wydawca:</span> {{ p.wydawca }}</div>
+            {% endif %}
+
+            <br>
+            <div style="background: #eef; padding: 10px; border-radius: 4px; font-size: 0.9em;">
+                <strong>Debug Info:</strong><br>
+                Wzór ID: {{ p.wzor_id }} | Miasto ID: {{ p.city_id }}
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
