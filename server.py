@@ -77,7 +77,8 @@ def index():
     city_filter = request.args.get('city_id', type=int)
     author_filter = request.args.get('author_id', type=int)
     wydawca_filter = request.args.get('publisher_id', type=int)
-    wzor_filter = request.args.get('wzor_id', type=int)
+    # parametry niejawne - bez UI
+    numer_wzoru = request.args.get('numer_wzoru', type=int)
 
     conn = get_db()
     cursor = conn.cursor()
@@ -127,9 +128,9 @@ def index():
     if wydawca_filter:
         sql += " AND wz.numer_wydawcy = ?"
         params.append(wydawca_filter)
-    if wzor_filter:
+    if numer_wzoru:
         sql += " AND wz.numer_wzoru = ?"
-        params.append(wzor_filter)
+        params.append(numer_wzoru)
 
     sql += " ORDER BY w.id DESC LIMIT 100"
 
@@ -139,6 +140,7 @@ def index():
     return render_template('index.html', pocztowki=rows,
                            search_query=query, year_filter=year_filter,
                            city_filter=city_filter, author_filter=author_filter,
+                           wydawca_filter=wydawca_filter,
                            all_cities=all_cities, all_authors=all_authors, all_publishers=all_publishers)
 
 
@@ -155,7 +157,9 @@ def view_card(card_id):
                  wz.numer_wzoru, \
                  m.name          as miasto, \
                  m.aliases       as miasto_alias, \
+                 a.id            as author_id, \
                  a.imie_nazwisko as autor, \
+                 a.lata          as autor_lata,
                  a.url           as autor_url, \
                  c.oznaczenie    as cenzura, \
                  wyd.name        as wydawca

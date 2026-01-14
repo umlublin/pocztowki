@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Katalog Pocztówek województwo lubelskie do 1975</title>
+    <title>Repozytorium Pocztówek</title>
     <style>
         /* (Te same style co wcześniej - skrócone dla czytelności) */
         :root { --primary-color: #2c3e50; --accent-color: #3498db; --bg-color: #f4f7f6; --card-bg: #ffffff; }
@@ -44,7 +44,7 @@
 
 <div class="container">
     <header>
-        <h1 style="text-align:center; color:#2c3e50;">Katalog Pocztówek województwo lubelskie do 1975</h1>
+        <h1 style="text-align:center; color:#2c3e50;">Repozytorium Pocztówek</h1>
         <form action="/" method="get" class="search-box">
             <input type="text" name="q" placeholder="Szukaj..." value="{{ search_query }}">
             <select name="publisher_id">
@@ -103,7 +103,7 @@
                     </td>
                     <td>
                         <strong>{{ p.wzor_full }}</strong><br>
-                        <span style="font-size:0.85em; color:#7f8c8d;">rok: {{ "Nieznany" if p.year == 0 else p.year }}</span>
+                        <span style="font-size:0.85em; color:#7f8c8d;">rok: {{ "Nieznany" if p.year == "0" else p.year }}</span>
                     </td>
                 </tr>
                 {% endfor %}
