@@ -1,0 +1,1 @@
+sudo cp pocztowki.service /etc/systemd/system/pocztowki.service

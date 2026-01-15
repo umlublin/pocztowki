@@ -1,0 +1,13 @@
+[Unit]
+Description=Flask Application :: Pocztowki
+After=network.target
+
+[Service]
+User=zoom
+WorkingDirectory=/home/pocztowki
+ExecStart=/home/pocztowki/.venv/bin/python server.py
+Restart=always
+Environment=FLASK_ENV=production
+
+[Install]
+WantedBy=multi-user.target
