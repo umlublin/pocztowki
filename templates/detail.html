@@ -90,12 +90,12 @@
                     </a>
                 </div>`;
             }
-            if (p.revers_id) {
+            if (p.rewers_id) {
                 imgContainer.innerHTML += `
                 <div class="image-box">
                     <span class="label">Rewers</span>
-                    <a href="/images/${p.revers_id}.jpg" target="_blank">
-                        <img src="/images/${p.revers_id}.jpg" alt="Rewers">
+                    <a href="/images/${p.rewers_id}.jpg" target="_blank">
+                        <img src="/images/${p.rewers_id}.jpg" alt="Rewers">
                     </a>
                 </div>`;
             }
@@ -107,7 +107,7 @@
 
             // Link do numeru wzoru
             document.getElementById('numerWzoruContainer').innerHTML = 
-                `<a href="/?publisher_id=${p.numer_wydawcy}&numer_wzoru=${p.numer_wzoru}">${p.numer_wydawcy}-${p.numer_wzoru}</a>`;
+                `<a href="/?publisher_id=${p.wydawca_id}&numer_wzoru=${p.numer_wzoru}">${p.wydawca_id}-${p.numer_wzoru}</a>`;
 
             // Autor
             let autorHtml = "";

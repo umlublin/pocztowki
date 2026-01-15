@@ -122,13 +122,18 @@ def api_search():
                  w.naklad, \
                  w.tag, \
                  w.awers_id, \
-                 wz.opis         as opis_wzoru, \
-                 m.name          as miasto, \
-                 a.imie_nazwisko as autor
+                 w.rewers_id, \
+                 wz.opis                                    as opis_wzoru, \
+                 wz.wydawca_id, \
+                 wz.numer_wzoru, \
+                 concat(wz.wydawca_id, '-', wz.numer_wzoru) as wzor_id, \
+                 m.name                                     as miasto, \
+                 a.imie_nazwisko                            as autor
           FROM wydanie w
                    LEFT JOIN wzory wz ON w.wzor_id = wz.id
                    LEFT JOIN miasta m ON wz.city_id = m.id
                    LEFT JOIN autorzy a ON wz.author_id = a.id
+                   LEFT JOIN wydawcy wyd ON wz.wydawca_id = wyd.id
           WHERE 1 = 1 \
           """
 
@@ -149,7 +154,7 @@ def api_search():
         sql += " AND wz.author_id = ?"
         params.append(author_filter)
     if wydawca_filter:
-        sql += " AND wz.numer_wydawcy = ?"
+        sql += " AND wz.wydawca_id = ?"
         params.append(wydawca_filter)
     if numer_wzoru:
         sql += " AND wz.numer_wzoru = ?"
@@ -171,7 +176,7 @@ def api_card_detail(card_id):
     sql = """
           SELECT w.*, \
                  wz.opis         as opis_wzoru, \
-                 wz.numer_wydawcy, \
+                 wz.wydawca_id, \
                  wz.numer_wzoru, \
                  m.name          as miasto, \
                  m.aliases       as miasto_alias, \
@@ -187,7 +192,7 @@ def api_card_detail(card_id):
                    LEFT JOIN miasta m ON wz.city_id = m.id
                    LEFT JOIN autorzy a ON wz.author_id = a.id
                    LEFT JOIN cenzura c ON w.cenzor_id = c.id
-                   LEFT JOIN wydawcy wyd ON wz.numer_wydawcy = wyd.id
+                   LEFT JOIN wydawcy wyd ON wz.wydawca_id = wyd.id
           WHERE w.id = ? \
           """
     cursor.execute(sql, (card_id,))

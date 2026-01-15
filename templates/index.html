@@ -120,27 +120,13 @@
             <input type="text" name="q" placeholder="Szukaj..." value="{{ search_query }}">
             <select id="publisher_id" name="publisher_id">
                 <option value="0">-- Dowolny wydawca --</option>
-                {% for publisher in all_publishers %}
-                <option value="{{ publisher.id }}" {% if publisher.id== wydawca_filter %}selected{% endif %}>{{
-                    publisher.name }}
-                </option>
-                {% endfor %}
             </select>
             <select id="city_id" name="city_id">
                 <option value="">-- Dowolne miasto --</option>
-                {% for city in all_cities %}
-                <option value="{{ city.id }}" {% if city.id== city_filter %}selected{% endif %}>{{ city.name }}</option>
-                {% endfor %}
             </select>
             <select id="author_id" name="author_id">
                 <option value="">-- Dowolny fotograf --</option>
-                {% for author in all_authors %}
-                <option value="{{ author.id }}" {% if author.id== author_filter %}selected{% endif %}>{{
-                    author.imie_nazwisko }}
-                </option>
-                {% endfor %}
             </select>
-            <input type="number" name="year" placeholder="Rok" value="{{ year_filter }}" style="width: 80px;">
             <button type="submit">Szukaj</button>
             <button type="button" id="resetBtn" style="background:#777;">Reset</button>
         </form>
@@ -150,10 +136,10 @@
         <table>
             <thead>
             <tr>
-                <th style="width: 60px;">ID</th>
+                <th style="width: 60px;">Wzór</th>
                 <th style="width: 140px;">Awers</th>
                 <th>Dane pocztówki</th>
-                <th>Wzór</th>
+                <th></th>
             </tr>
             </thead>
             <tbody id="resultsBody">
@@ -230,10 +216,11 @@
                     : `<div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>`;
 
                 const autorHtml = p.autor ? `Fotograf: ${p.autor}` : `<span style="color:#7f8c8d;">Fotograf: nieznany</span>`;
-                const yearHtml = (p.year == "0" || !p.year) ? "Nieznany" : p.year;
+                const yearHtml = (p.year == "0" || !p.year) ? `<span style="color:#7f8c8d;">nieznany</span>` : p.year;
+                const nakladHtml = p.naklad ? `${p.naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
 
                 tr.innerHTML = `
-                    <td>${p.id}</td>
+                    <td>${p.wzor_id}</td>
                     <td>${imgHtml}</td>
                     <td>
                         <div style="font-weight:bold; color:#2c3e50;">${p.miasto || "Nieznane miasto"}</div>
@@ -242,7 +229,8 @@
                     </td>
                     <td>
                         <strong>${p.wzor_full}</strong><br>
-                        <span style="font-size:0.85em; color:#7f8c8d;">rok: ${yearHtml}</span>
+                        <div style="font-size:0.85em; color:#7f8c8d;">rok: ${yearHtml}</div>
+                        <div style="font-size:0.85em; color:#7f8c8d;">nakład: ${nakladHtml}</div>
                     </td>
                 `;
                 tbody.appendChild(tr);
