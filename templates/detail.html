@@ -2,189 +2,156 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Pocztówka #{{ p.id }} - {{ p.wzor_full }}</title>
+    <title>Ładowanie pocztówki...</title>
     <style>
-        body {
-            font-family: sans-serif;
-            background: #f4f7f6;
-            color: #333;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-nav {
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .btn-back {
-            text-decoration: none;
-            color: white;
-            background: #3498db;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .btn-back:hover {
-            background: #2980b9;
-        }
-
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-
-        @media (max-width: 768px) {
-            .grid-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .images-section {
-            text-align: center;
-        }
-
-        .image-box {
-            margin-bottom: 20px;
-            background: #f9f9f9;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 4px;
-        }
-
-        .image-box img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        .label {
-            font-weight: bold;
-            color: #7f8c8d;
-            display: block;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            font-size: 0.8em;
-        }
-
-        .info-section h2 {
-            margin-top: 0;
-            color: #2c3e50;
-        }
-
-        .data-row {
-            margin-bottom: 12px;
-            border-bottom: 1px solid #f0f0f0;
-            padding-bottom: 8px;
-        }
-
-        .data-label {
-            font-weight: bold;
-            color: #555;
-            width: 120px;
-            display: inline-block;
-        }
-
-        .badge {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-        }
-        .badge-city { background: #e8f6f3; color: #1abc9c; }
+        /* (Style bez zmian) */
+        body { font-family: sans-serif; background: #f4f7f6; color: #333; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+        .header-nav { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-back { text-decoration: none; color: white; background: #3498db; padding: 8px 15px; border-radius: 4px; font-size: 14px; }
+        .btn-back:hover { background: #2980b9; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
+        .images-section { text-align: center; }
+        .image-box { margin-bottom: 20px; background: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; }
+        .image-box img { max-width: 100%; height: auto; display: block; margin: 0 auto; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
+        .label { font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 5px; text-transform: uppercase; font-size: 0.8em; }
+        .info-section h2 { margin-top: 0; color: #2c3e50; }
+        .data-row { margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .data-label { font-weight: bold; color: #555; width: 120px; display: inline-block; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; background: #e8f6f3; color: #1abc9c; margin-right:5px;}
+        a { color: #3498db; text-decoration: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="mainContainer" style="display:none;">
     <div class="header-nav">
-        <h1>Wydanie {{ p.wzor_full }}</h1>
+        <h1 id="pageTitle">Wydanie</h1>
         <a href="/" class="btn-back">← Powrót do listy</a>
     </div>
 
     <div class="grid-layout">
-        <div class="images-section">
-            {% if p.awers_id %}
-            <div class="image-box">
-                <span class="label">Awers</span>
-                <a href="/images/{{ p.awers_id }}.jpg" target="_blank">
-                    <img src="/images/{{ p.awers_id }}.jpg" alt="Awers">
-                </a>
-            </div>
-            {% endif %}
-
-            {% if p.revers_id %}
-            <div class="image-box">
-                <span class="label">Rewers</span>
-                <a href="/images/{{ p.revers_id }}.jpg" target="_blank">
-                    <img src="/images/{{ p.revers_id }}.jpg" alt="Rewers">
-                </a>
-            </div>
-            {% endif %}
+        <div class="images-section" id="imagesContainer">
+            <!-- Obrazki wstrzyknięte przez JS -->
         </div>
 
         <div class="info-section">
-            <h2>{{ p.miasto }}</h2>
-            <p style="font-size: 1.1em; font-style: italic;">{{ p.opis_wzoru }}</p>
+            <h2 id="cityName"></h2>
+            <p style="font-size: 1.1em; font-style: italic;" id="opisWzoru"></p>
 
-            <div class="data-row"><span class="data-label">Nr wydania:</span> {{ p.wzor_full }}</div>
-            <div class="data-row"><span class="data-label">Numer wzoru:</span> <a href="/?publisher_id={{ p.numer_wydawcy }}&numer_wzoru={{ p.numer_wzoru }}">{{ p.numer_wydawcy }}-{{ p.numer_wzoru }}</a>
-            </div>
-            <div class="data-row"><span class="data-label">Fotograf:</span>
-                {% if p.autor %}
-                    <a href="/?author_id={{ p.author_id }}">{{ p.autor }}</a>
-                {% endif %}
-                {% if p.autor_lata %}
-                    ({{ p.autor_lata }})
-                {% endif %}
-                {% if p.autor_url %}
-                    <a href="{{ p.autor_url }}" target="_blank">[link]</a>
-                {% endif %}
+            <div class="data-row"><span class="data-label">Nr wydania:</span> <span id="wzorFull"></span></div>
+            <div class="data-row"><span class="data-label">Numer wzoru:</span> <span id="numerWzoruContainer"></span></div>
+            
+            <div class="data-row"><span class="data-label">Fotograf:</span> <span id="autorContainer"></span></div>
+            
+            <div class="data-row"><span class="data-label">Rok:</span> <span id="yearVal"></span></div>
+            <div class="data-row"><span class="data-label">Nakład:</span> <span id="nakladVal"></span></div>
+            <div class="data-row"><span class="data-label">Cenzura:</span> <span id="cenzuraVal"></span></div>
+            
+            <div class="data-row"><span class="data-label">Tagi:</span> <span id="tagsContainer"></span></div>
+            <div class="data-row"><span class="data-label">Zamówienie:</span> <span id="zamowienieVal"></span></div>
 
-            </div>
-            <div class="data-row"><span class="data-label">Rok:</span> {{ p.year }}</div>
-            <div class="data-row"><span class="data-label">Nakład:</span> {{ p.naklad or "-" }}</div>
-            <div class="data-row"><span class="data-label">Cenzura:</span> {{ p.cenzura or "-" }} ({{ p.cenzor_full or
-                "-" }})
-            </div>
-            <div class="data-row"><span class="data-label">Tagi:</span>
-            {% if p.tag %}
-                {% for tag in p.tag.split(',') %}
-                <span class="badge badge-city"><a href="/?tag={{ tag.strip() }}">{{ tag.strip() }}</a></span>
-                {% endfor %}
-            {% endif %}
-            </div>
-            <div class="data-row"><span class="data-label">Zamówienie:</span> {{ p.zamowienie or "-" }}</div>
-
-            {% if p.wydawca %}
-            <div class="data-row"><span class="data-label">Wydawca:</span> {{ p.wydawca }}</div>
-            {% endif %}
+            <div class="data-row" id="wydawcaRow" style="display:none;"><span class="data-label">Wydawca:</span> <span id="wydawcaVal"></span></div>
 
             <br>
             <div style="background: #eef; padding: 10px; border-radius: 4px; font-size: 0.9em;">
                 <strong>Debug Info:</strong><br>
-                Wzór ID: {{ p.wzor_id }} || Author ID: {{ p.author_id }}
-
+                Wzór ID: <span id="debugWzorId"></span> || Author ID: <span id="debugAuthorId"></span>
             </div>
         </div>
     </div>
 </div>
+
+<div id="loading" style="text-align:center; padding:50px;">Ładowanie danych pocztówki...</div>
+
+<script>
+    // Pobranie ID z URL (ostatni segment)
+    const cardId = window.location.pathname.split('/').pop();
+
+    async function loadCardDetails() {
+        try {
+            const response = await fetch(`/api/card/${cardId}`);
+            if (!response.ok) throw new Error("Błąd pobierania");
+            const p = await response.json();
+
+            // Uzupełnianie tytułu
+            document.title = `Pocztówka ${p.id} - ${p.wzor_full}`;
+            document.getElementById('pageTitle').textContent = `Wydanie ${p.wzor_full}`;
+            
+            // Obrazki
+            const imgContainer = document.getElementById('imagesContainer');
+            if (p.awers_id) {
+                imgContainer.innerHTML += `
+                <div class="image-box">
+                    <span class="label">Awers</span>
+                    <a href="/images/${p.awers_id}.jpg" target="_blank">
+                        <img src="/images/${p.awers_id}.jpg" alt="Awers">
+                    </a>
+                </div>`;
+            }
+            if (p.revers_id) {
+                imgContainer.innerHTML += `
+                <div class="image-box">
+                    <span class="label">Rewers</span>
+                    <a href="/images/${p.revers_id}.jpg" target="_blank">
+                        <img src="/images/${p.revers_id}.jpg" alt="Rewers">
+                    </a>
+                </div>`;
+            }
+
+            // Dane tekstowe
+            document.getElementById('cityName').textContent = p.miasto || "Nieznane miasto";
+            document.getElementById('opisWzoru').textContent = p.opis_wzoru || "Brak opisu";
+            document.getElementById('wzorFull').textContent = p.wzor_full;
+
+            // Link do numeru wzoru
+            document.getElementById('numerWzoruContainer').innerHTML = 
+                `<a href="/?publisher_id=${p.numer_wydawcy}&numer_wzoru=${p.numer_wzoru}">${p.numer_wydawcy}-${p.numer_wzoru}</a>`;
+
+            // Autor
+            let autorHtml = "";
+            if (p.autor) autorHtml += `<a href="/?author_id=${p.author_id}">${p.autor}</a> `;
+            if (p.autor_lata) autorHtml += `(${p.autor_lata}) `;
+            if (p.autor_url) autorHtml += `<a href="${p.autor_url}" target="_blank">[link]</a>`;
+            document.getElementById('autorContainer').innerHTML = autorHtml || "-";
+
+            document.getElementById('yearVal').textContent = p.year == 0 ? 'Nieznany' : p.year
+            document.getElementById('nakladVal').textContent = p.naklad || "Nieznany";
+            
+            // Cenzura
+            let cenz = (p.cenzura || "-") + " (" + (p.cenzor_full || "-") + ")";
+            document.getElementById('cenzuraVal').textContent = cenz;
+
+            // Tagi
+            if (p.tag) {
+                const tags = p.tag.split(',');
+                document.getElementById('tagsContainer').innerHTML = tags.map(t => 
+                    `<span class="badge"><a href="/?q=${t.trim()}" style="color:inherit; text-decoration:none;">${t.trim()}</a></span>`
+                ).join(' ');
+            }
+
+            document.getElementById('zamowienieVal').textContent = p.zamowienie || "-";
+
+            if (p.wydawca) {
+                document.getElementById('wydawcaRow').style.display = 'block';
+                document.getElementById('wydawcaVal').textContent = p.wydawca;
+            }
+
+            document.getElementById('debugWzorId').textContent = p.wzor_id;
+            document.getElementById('debugAuthorId').textContent = p.author_id;
+
+            // Pokaż kontener
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
+
+        } catch (e) {
+            document.getElementById('loading').innerHTML = `<h3 style="color:red">Błąd: Nie znaleziono pocztówki lub błąd serwera.</h3><a href="/">Wróć</a>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadCardDetails);
+</script>
 
 </body>
 </html>

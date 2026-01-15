@@ -6,24 +6,86 @@
     <title>Repozytorium Pocztówek</title>
     <style>
         /* (Te same style co wcześniej - skrócone dla czytelności) */
-        :root { --primary-color: #2c3e50; --accent-color: #3498db; --bg-color: #f4f7f6; --card-bg: #ffffff; }
-        body { font-family: sans-serif; background: var(--bg-color); color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
         /* Header i Formularz */
-        .search-box { background: var(--card-bg); padding: 20px; border-radius: 8px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px;}
-        input, select, button { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background: var(--accent-color); color: white; border: none; cursor: pointer; }
+        .search-box {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
 
         /* Tabela */
-        .table-wrapper { background: var(--card-bg); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-x: auto;}
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
-        th { background: var(--primary-color); color: white; }
+        .table-wrapper {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+
+        th {
+            background: var(--primary-color);
+            color: white;
+        }
 
         /* Klikalny wiersz */
-        tr.clickable-row { cursor: pointer; transition: background 0.1s; }
-        tr.clickable-row:hover { background-color: #eaf2f8; }
+        tr.clickable-row {
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        tr.clickable-row:hover {
+            background-color: #eaf2f8;
+        }
 
         /* Miniatury */
         .thumb-img {
@@ -36,8 +98,17 @@
         }
 
         /* Badge */
-        .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
-        .badge-city { background: #e8f6f3; color: #1abc9c; }
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .badge-city {
+            background: #e8f6f3;
+            color: #1abc9c;
+        }
     </style>
 </head>
 <body>
@@ -45,72 +116,164 @@
 <div class="container">
     <header>
         <h1 style="text-align:center; color:#2c3e50;">Repozytorium Pocztówek</h1>
-        <form action="/" method="get" class="search-box">
+        <form id="searchForm" action="/" method="get" class="search-box">
             <input type="text" name="q" placeholder="Szukaj..." value="{{ search_query }}">
-            <select name="publisher_id">
-                <option value="">-- Dowolny wydawca --</option>
+            <select id="publisher_id" name="publisher_id">
+                <option value="0">-- Dowolny wydawca --</option>
                 {% for publisher in all_publishers %}
-                    <option value="{{ publisher.id }}" {% if publisher.id == wydawca_filter %}selected{% endif %}>{{ publisher.name }}</option>
+                <option value="{{ publisher.id }}" {% if publisher.id== wydawca_filter %}selected{% endif %}>{{
+                    publisher.name }}
+                </option>
                 {% endfor %}
             </select>
-            <select name="city_id">
+            <select id="city_id" name="city_id">
                 <option value="">-- Dowolne miasto --</option>
                 {% for city in all_cities %}
-                    <option value="{{ city.id }}" {% if city.id == city_filter %}selected{% endif %}>{{ city.name }}</option>
+                <option value="{{ city.id }}" {% if city.id== city_filter %}selected{% endif %}>{{ city.name }}</option>
                 {% endfor %}
             </select>
-            <select name="author_id">
-                <option value="">-- Dowolny autor --</option>
+            <select id="author_id" name="author_id">
+                <option value="">-- Dowolny fotograf --</option>
                 {% for author in all_authors %}
-                    <option value="{{ author.id }}" {% if author.id == author_filter %}selected{% endif %}>{{ author.imie_nazwisko }}</option>
+                <option value="{{ author.id }}" {% if author.id== author_filter %}selected{% endif %}>{{
+                    author.imie_nazwisko }}
+                </option>
                 {% endfor %}
             </select>
             <input type="number" name="year" placeholder="Rok" value="{{ year_filter }}" style="width: 80px;">
             <button type="submit">Szukaj</button>
-            <a href="/" style="padding:10px; color:#777;">Reset</a>
+            <button type="button" id="resetBtn" style="background:#777;">Reset</button>
         </form>
     </header>
 
     <div class="table-wrapper">
         <table>
             <thead>
-                <tr>
-                    <th style="width: 60px;">ID</th>
-                    <th style="width: 140px;">Awers</th>
-                    <th>Dane pocztówki</th>
-                    <th>Wzór</th>
-                </tr>
+            <tr>
+                <th style="width: 60px;">ID</th>
+                <th style="width: 140px;">Awers</th>
+                <th>Dane pocztówki</th>
+                <th>Wzór</th>
+            </tr>
             </thead>
-            <tbody>
-                {% for p in pocztowki %}
-                <tr class="clickable-row" onclick="window.location='/view/{{ p.id }}'">
-                    <td>{{ p.id }}</td>
-                    <td>
-                        {% if p.awers_id %}
-                            <img src="/images/{{ p.awers_id }}_mini.jpg" class="thumb-img" alt="Miniatura">
-                        {% else %}
-                            <div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div style="font-weight:bold; color:#2c3e50;">{{ p.miasto or "Nieznane miasto" }}</div>
-                        <div style="font-size:0.9em; color:#555;">{{ p.opis_wzoru or "Brak opisu" }}</div>
-                        {% if p.autor %}
-                            <div style="font-size:0.8em;">Autor: {{ p.autor }}</div>
-                        {% else %}
-                            <div style="font-size:0.8em; color:#7f8c8d;">Autor Nieznany</div>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <strong>{{ p.wzor_full }}</strong><br>
-                        <span style="font-size:0.85em; color:#7f8c8d;">rok: {{ "Nieznany" if p.year == "0" else p.year }}</span>
-                    </td>
-                </tr>
-                {% endfor %}
+            <tbody id="resultsBody">
+            <!-- Tu wpadną dane z JS -->
+            <tr>
+                <td colspan="4" style="text-align:center;">Ładowanie danych...</td>
+            </tr>
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    // 1. Pobieranie danych do Selectów
+    async function loadFilters() {
+        try {
+            const response = await fetch('/api/filters');
+            const data = await response.json();
+
+            populateSelect('publisher_id', data.publishers);
+            populateSelect('city_id', data.cities);
+            populateSelect('author_id', data.authors, 'imie_nazwisko');
+        } catch (e) {
+            console.error("Błąd ładowania filtrów", e);
+        }
+    }
+
+    function populateSelect(elementId, items, labelKey = 'name') {
+        const select = document.getElementById(elementId);
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item[labelKey];
+            select.appendChild(option);
+        });
+    }
+
+    // 2. Pobieranie listy pocztówek
+    async function loadCards() {
+        const tbody = document.getElementById('resultsBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Pobieranie...</td></tr>';
+
+        // Zbieramy dane z formularza
+        const formData = new FormData(document.getElementById('searchForm'));
+        const params = new URLSearchParams(formData);
+
+        // Obsługa parametrów z URL (np. jeśli ktoś wejdzie z linku)
+        const urlParams = new URLSearchParams(window.location.search);
+        // Jeśli formularz jest pusty, a w URL są parametry, użyjmy URL do wypełnienia formularza (opcjonalne UX)
+        for (const [key, value] of urlParams.entries()) {
+            if (document.getElementsByName(key).length > 0 && !params.get(key)) {
+                document.getElementsByName(key)[0].value = value;
+                params.set(key, value);
+            }
+        }
+
+        try {
+            const response = await fetch(`/api/search?${params.toString()}`);
+            const cards = await response.json();
+
+            tbody.innerHTML = '';
+            if (cards.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Brak wyników</td></tr>';
+                return;
+            }
+
+            cards.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'clickable-row';
+                tr.onclick = () => window.location = `/view/${p.id}`;
+
+                const imgHtml = p.awers_id
+                    ? `<img src="/images/${p.awers_id}_mini.jpg" class="thumb-img" alt="Miniatura">`
+                    : `<div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>`;
+
+                const autorHtml = p.autor ? `Fotograf: ${p.autor}` : `<span style="color:#7f8c8d;">Fotograf: nieznany</span>`;
+                const yearHtml = (p.year == "0" || !p.year) ? "Nieznany" : p.year;
+
+                tr.innerHTML = `
+                    <td>${p.id}</td>
+                    <td>${imgHtml}</td>
+                    <td>
+                        <div style="font-weight:bold; color:#2c3e50;">${p.miasto || "Nieznane miasto"}</div>
+                        <div style="font-size:0.9em; color:#555;">${p.opis_wzoru || "Brak opisu"}</div>
+                        <div style="font-size:0.8em;">${autorHtml}</div>
+                    </td>
+                    <td>
+                        <strong>${p.wzor_full}</strong><br>
+                        <span style="font-size:0.85em; color:#7f8c8d;">rok: ${yearHtml}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Aktualizacja URL bez przeładowania (dla bookmarkowania)
+            window.history.pushState({}, '', `?${params.toString()}`);
+
+        } catch (e) {
+            console.error("Błąd ładowania kart", e);
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Błąd serwera</td></tr>';
+        }
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        loadFilters();
+        loadCards();
+    });
+
+    document.getElementById('searchForm').addEventListener('submit', (e) => {
+        e.preventDefault(); // Nie przeładowuj strony
+        loadCards();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        document.getElementById('searchForm').reset();
+        loadCards();
+    });
+
+</script>
 
 </body>
 </html>

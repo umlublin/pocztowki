@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from flask import Flask, render_template, request, g, send_from_directory, abort
+from flask import Flask, render_template, request, g, send_from_directory, abort, jsonify
 from PIL import Image
 
 app = Flask(__name__)
@@ -23,6 +23,16 @@ def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+
+# Helper do konwersji wierszy DB na dict (dla JSON)
+def dict_from_row(row):
+    return dict(zip(row.keys(), row))
+
+
+def dict_list_from_rows(rows):
+    return [dict_from_row(r) for r in rows]
+
 
 def ensure_thumb_folder():
     if not os.path.exists(THUMB_FOLDER):
@@ -67,30 +77,43 @@ def serve_thumbnail(img_id):
         print(f"Błąd generowania miniatury: {e}")
         return abort(500)
 
+    # --- API Endpoints (JSON) ---
 
-# --- Widoki Aplikacji ---
 
-@app.route('/')
-def index():
+@app.route('/api/filters')
+def api_filters():
+    """Zwraca dane do selectów"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id, name FROM miasta ORDER BY name ASC")
+    cities = dict_list_from_rows(cursor.fetchall())
+
+    cursor.execute("SELECT id, imie_nazwisko FROM autorzy ORDER BY imie_nazwisko ASC")
+    authors = dict_list_from_rows(cursor.fetchall())
+
+    cursor.execute("SELECT id, name FROM wydawcy ORDER BY name ASC")
+    publishers = dict_list_from_rows(cursor.fetchall())
+
+    return jsonify({
+        'cities': cities,
+        'authors': authors,
+        'publishers': publishers
+    })
+
+
+@app.route('/api/search')
+def api_search():
+    """Zwraca listę pocztówek wg filtrów"""
     query = request.args.get('q', '')
     year_filter = request.args.get('year', '')
     city_filter = request.args.get('city_id', type=int)
     author_filter = request.args.get('author_id', type=int)
     wydawca_filter = request.args.get('publisher_id', type=int)
-    # parametry niejawne - bez UI
     numer_wzoru = request.args.get('numer_wzoru', type=int)
 
     conn = get_db()
     cursor = conn.cursor()
-
-    # Listy do filtrów
-    cursor.execute("SELECT id, name FROM miasta ORDER BY name ASC")
-    all_cities = cursor.fetchall()
-    cursor.execute("SELECT id, imie_nazwisko FROM autorzy ORDER BY imie_nazwisko ASC")
-    all_authors = cursor.fetchall()
-    cursor.execute("SELECT id, name FROM wydawcy ORDER BY name ASC")
-    all_publishers = cursor.fetchall()
-
 
     sql = """
           SELECT w.id, \
@@ -137,19 +160,14 @@ def index():
     cursor.execute(sql, params)
     rows = cursor.fetchall()
 
-    return render_template('index.html', pocztowki=rows,
-                           search_query=query, year_filter=year_filter,
-                           city_filter=city_filter, author_filter=author_filter,
-                           wydawca_filter=wydawca_filter,
-                           all_cities=all_cities, all_authors=all_authors, all_publishers=all_publishers)
+    return jsonify(dict_list_from_rows(rows))
 
 
-@app.route('/view/<int:card_id>')
-def view_card(card_id):
+@app.route('/api/card/<int:card_id>')
+def api_card_detail(card_id):
     conn = get_db()
     cursor = conn.cursor()
 
-    # Pobieramy szczegóły jednej pocztówki
     sql = """
           SELECT w.*, \
                  wz.opis         as opis_wzoru, \
@@ -159,9 +177,10 @@ def view_card(card_id):
                  m.aliases       as miasto_alias, \
                  a.id            as author_id, \
                  a.imie_nazwisko as autor, \
-                 a.lata          as autor_lata,
+                 a.lata          as autor_lata, \
                  a.url           as autor_url, \
                  c.oznaczenie    as cenzura, \
+                 w.cenzor_full as cenzor_full, \
                  wyd.name        as wydawca
           FROM wydanie w
                    LEFT JOIN wzory wz ON w.wzor_id = wz.id
@@ -175,9 +194,24 @@ def view_card(card_id):
     row = cursor.fetchone()
 
     if row is None:
-        return "Pocztówka nie istnieje", 404
+        return jsonify({'error': 'Pocztówka nie istnieje'}), 404
 
-    return render_template('detail.html', p=row)
+    return jsonify(dict_from_row(row))
+
+
+# --- Widoki HTML (Statyczne kontenery) ---
+
+
+@app.route('/')
+def index():
+    # Nie przekazujemy już danych, frontend je sobie pobierze
+    return render_template('index.html')
+
+
+@app.route('/view/<int:card_id>')
+def view_card(card_id):
+    # ID jest w URL, frontend wyciągnie je z window.location lub przekażemy je jako prostą zmienną JS
+    return render_template('detail.html', card_id=card_id)
 
 
 if __name__ == '__main__':
