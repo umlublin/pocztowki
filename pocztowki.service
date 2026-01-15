@@ -3,7 +3,7 @@ Description=Flask Application :: Pocztowki
 After=network.target
 
 [Service]
-User=zoom
+User=pocztowki
 WorkingDirectory=/home/pocztowki
 ExecStart=/home/pocztowki/.venv/bin/python server.py
 Restart=always

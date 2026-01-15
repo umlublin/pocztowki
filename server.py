@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, g, send_from_directory, abort
 from PIL import Image
 
 app = Flask(__name__)
-DATABASE = 'pocztowki.db'
+DATABASE = './instance/pocztowki.db'
 IMAGE_FOLDER = './images'
 THUMB_FOLDER = './images/thumbnails'
 THUMB_SIZE = 120  # Max szerokość/wysokość w pikselach
@@ -222,4 +222,4 @@ def view_card(card_id):
 if __name__ == '__main__':
     if not os.path.exists(IMAGE_FOLDER):
         os.makedirs(IMAGE_FOLDER)
-    app.run(debug=True)
+    app.run(debug=False)
