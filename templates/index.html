@@ -118,13 +118,13 @@
         <h1 style="text-align:center; color:#2c3e50;">Repozytorium Pocztówek</h1>
         <form id="searchForm" action="/" method="get" class="search-box">
             <input type="text" name="q" placeholder="Szukaj..." value="{{ search_query }}">
-            <select id="publisher_id" name="publisher_id">
+            <select id="wydawca_id" name="wydawca_id">
                 <option value="0">-- Dowolny wydawca --</option>
             </select>
-            <select id="city_id" name="city_id">
+            <select id="miasto_id" name="miasto_id">
                 <option value="0">-- Dowolne miasto --</option>
             </select>
-            <select id="author_id" name="author_id">
+            <select id="autor_id" name="autor_id">
                 <option value="0">-- Dowolny fotograf --</option>
             </select>
             <button type="submit">Szukaj</button>
@@ -159,19 +159,19 @@
             const response = await fetch('/api/filters');
             const data = await response.json();
 
-            populateSelect('publisher_id', data.publishers);
-            populateSelect('city_id', data.cities);
-            populateSelect('author_id', data.authors, 'imie_nazwisko');
+            populateSelect('wydawca_id', data.wydawcy, 'wydawca_id', 'wydawca_nazwa');
+            populateSelect('miasto_id', data.miasta, 'miasto_id', 'miasto_nazwa');
+            populateSelect('autor_id', data.autorzy, 'autor_id', 'autor_nazwa');
         } catch (e) {
             console.error("Błąd ładowania filtrów", e);
         }
     }
 
-    function populateSelect(elementId, items, labelKey = 'name') {
+    function populateSelect(elementId, items, idKey = 'id', labelKey = 'name') {
         const select = document.getElementById(elementId);
         items.forEach(item => {
             const option = document.createElement('option');
-            option.value = item.id;
+            option.value = item[idKey];
             option.textContent = item[labelKey];
             select.appendChild(option);
         });
@@ -209,26 +209,26 @@
             cards.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.className = 'clickable-row';
-                tr.onclick = () => window.location = `/view/${p.id}`;
+                tr.onclick = () => window.location = `/view/${p.wydanie_id}`;
 
                 const imgHtml = p.awers_id
                     ? `<img src="/images/${p.awers_id}_mini.jpg" class="thumb-img" alt="Miniatura">`
                     : `<div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>`;
 
-                const autorHtml = p.autor ? `Fotograf: ${p.autor}` : `<span style="color:#7f8c8d;">Fotograf: nieznany</span>`;
-                const yearHtml = (p.year == "0" || !p.year) ? `<span style="color:#7f8c8d;">nieznany</span>` : p.year;
-                const nakladHtml = p.naklad ? `${p.naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
+                const autorHtml = p.autor_nazwa ? `Fotograf: ${p.autor_nazwa}` : `<span style="color:#7f8c8d;">Fotograf: nieznany</span>`;
+                const yearHtml = (p.wydanie_rok == "0" || !p.wydanie_rok) ? `<span style="color:#7f8c8d;">nieznany</span>` : p.wydanie_rok;
+                const nakladHtml = p.wydanie_naklad ? `${p.wydanie_naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
 
                 tr.innerHTML = `
                     <td>${p.wzor_id}</td>
                     <td>${imgHtml}</td>
                     <td>
-                        <div style="font-weight:bold; color:#2c3e50;">${p.miasto || "Nieznane miasto"}</div>
-                        <div style="font-size:0.9em; color:#555;">${p.opis_wzoru || "Brak opisu"}</div>
+                        <div style="font-weight:bold; color:#2c3e50;">${p.miasto_nazwa || "Nieznane miasto"}</div>
+                        <div style="font-size:0.9em; color:#555;">${p.wzor_opis || "Brak opisu"}</div>
                         <div style="font-size:0.8em;">${autorHtml}</div>
                     </td>
                     <td>
-                        <strong>${p.wzor_full}</strong><br>
+                        <strong>${p.wydanie_numer}</strong><br>
                         <div style="font-size:0.85em; color:#7f8c8d;">rok: ${yearHtml}</div>
                         <div style="font-size:0.85em; color:#7f8c8d;">nakład: ${nakladHtml}</div>
                     </td>

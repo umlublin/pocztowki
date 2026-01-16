@@ -86,19 +86,20 @@ def api_filters():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, name FROM miasta ORDER BY name ASC")
+    cursor.execute("SELECT miasto_id, miasto_nazwa FROM miasta ORDER BY miasto_nazwa ASC")
     cities = dict_list_from_rows(cursor.fetchall())
 
-    cursor.execute("SELECT id, imie_nazwisko FROM autorzy ORDER BY imie_nazwisko ASC")
+    cursor.execute("SELECT autor_id, autor_nazwa FROM autorzy ORDER BY autor_nazwa ASC")
     authors = dict_list_from_rows(cursor.fetchall())
 
-    cursor.execute("SELECT id, name FROM wydawcy ORDER BY name ASC")
+    cursor.execute("SELECT wydawca_id, wydawca_nazwa FROM wydawcy ORDER BY wydawca_nazwa ASC")
     publishers = dict_list_from_rows(cursor.fetchall())
 
     return jsonify({
-        'cities': cities,
-        'authors': authors,
-        'publishers': publishers
+        'miasta': cities,
+        'autorzy': authors,
+        'wydawcy': publishers,
+        'tagi': ['pano', 'kolor', 'ramka']
     })
 
 
@@ -106,34 +107,37 @@ def api_filters():
 def api_search():
     """Zwraca listę pocztówek wg filtrów"""
     query = request.args.get('q', '')
-    year_filter = request.args.get('year', '')
-    city_filter = request.args.get('city_id', type=int)
-    author_filter = request.args.get('author_id', type=int)
-    wydawca_filter = request.args.get('publisher_id', type=int)
-    numer_wzoru = request.args.get('numer_wzoru', type=int)
+    rok_filter = request.args.get('rok', type=int)
+    miasto_filter = request.args.get('miasto_id', type=int)
+    autor_filter = request.args.get('autor_id', type=int)
+    wydawca_filter = request.args.get('wydawca_id', type=int)
+    wzor_numer = request.args.get('wzor_numer', type=int)
 
     conn = get_db()
     cursor = conn.cursor()
 
     sql = """
-          SELECT w.id, \
-                 w.wzor_full, \
-                 w.year, \
-                 w.naklad, \
-                 w.tag, \
-                 w.awers_id, \
-                 w.rewers_id, \
-                 wz.opis                                    as opis_wzoru, \
+          SELECT wyd.wydanie_id, \
+                 wyd.wydanie_numer, \
+                 wyd.wydanie_rok, \
+                 wyd.wydanie_naklad, \
+                 wyd.wydanie_tag, \
+                 wyd.wydanie_cenzura, \
+                 wyd.wydanie_zamowienie, \
+                 wyd.awers_id, \
+                 wyd.rewers_id, \
+                 wz.wzor_id, \
+                 wz.wzor_opis, \
                  wz.wydawca_id, \
-                 wz.numer_wzoru, \
-                 concat(wz.wydawca_id, '-', wz.numer_wzoru) as wzor_id, \
-                 m.name                                     as miasto, \
-                 a.imie_nazwisko                            as autor
-          FROM wydanie w
-                   LEFT JOIN wzory wz ON w.wzor_id = wz.id
-                   LEFT JOIN miasta m ON wz.city_id = m.id
-                   LEFT JOIN autorzy a ON wz.author_id = a.id
-                   LEFT JOIN wydawcy wyd ON wz.wydawca_id = wyd.id
+                 concat(wz.wydawca_id, '-', wz.wzor_numer) as wzor_id, \
+                 wz.wzor_opis, \
+                 m.miasto_nazwa, \
+                 a.autor_nazwa
+          FROM wydanie wyd
+                   LEFT JOIN wzory wz ON wyd.wzor_id = wz.wzor_id
+                   LEFT JOIN miasta m ON wz.miasto_id = m.miasto_id
+                   LEFT JOIN autorzy a ON wz.autor_id = a.autor_id
+                   LEFT JOIN wydawcy pub ON wz.wydawca_id = pub.wydawca_id
           WHERE 1 = 1 \
           """
 
@@ -141,26 +145,27 @@ def api_search():
 
     if query:
         search_term = f"%{query}%"
-        sql += " AND (wz.opis LIKE ? OR w.wzor_full LIKE ? OR w.tag LIKE ?)"
-        params.extend([search_term, search_term, search_term])
+        sql += " AND (wz.wzor_opis LIKE ? OR wz.wzor_numer LIKE ?)"
+        params.extend([search_term, search_term])
 
-    if year_filter:
-        sql += " AND w.year = ?"
-        params.append(year_filter)
-    if city_filter:
-        sql += " AND wz.city_id = ?"
-        params.append(city_filter)
-    if author_filter:
-        sql += " AND wz.author_id = ?"
-        params.append(author_filter)
+    if rok_filter:
+        sql += " AND wyd.wydanie_rok = ?"
+        params.append(rok_filter)
+
+    if miasto_filter:
+        sql += " AND wz.miasto_id = ?"
+        params.append(miasto_filter)
+    if autor_filter:
+        sql += " AND wz.autor_id = ?"
+        params.append(autor_filter)
     if wydawca_filter:
         sql += " AND wz.wydawca_id = ?"
         params.append(wydawca_filter)
-    if numer_wzoru:
-        sql += " AND wz.numer_wzoru = ?"
-        params.append(numer_wzoru)
+    if wzor_numer:
+        sql += " AND wz.wzor_numer = ?"
+        params.append(wzor_numer)
 
-    sql += " ORDER BY w.id DESC LIMIT 100"
+    sql += " ORDER BY wyd.wydanie_id DESC LIMIT 100"
 
     cursor.execute(sql, params)
     rows = cursor.fetchall()
