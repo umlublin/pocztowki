@@ -99,7 +99,7 @@ def api_filters():
         'miasta': cities,
         'autorzy': authors,
         'wydawcy': publishers,
-        'tagi': ['pano', 'kolor', 'ramka']
+        'tagi': ['panorama', 'kolor', 'ramka', 'lotnicze']
     })
 
 
@@ -112,10 +112,6 @@ def api_search():
     autor_filter = request.args.get('autor_id', type=int)
     wydawca_filter = request.args.get('wydawca_id', type=int)
     wzor_numer = request.args.get('wzor_numer', type=str)
-    
-    # Obsługa paginacji / infinite scroll
-    offset = request.args.get('offset', 0, type=int)
-    limit = 20 # Pobieramy po 20 sztuk
 
     conn = get_db()
     cursor = conn.cursor()
@@ -169,9 +165,7 @@ def api_search():
         sql += " AND wzor_numer = ?"
         params.append(wzor_numer)
 
-    # Dodajemy LIMIT i OFFSET
-    sql += " ORDER BY wyd.wydanie_rok LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
+    sql += " ORDER BY wyd.wydanie_rok LIMIT 10"
 
     cursor.execute(sql, params)
     rows = cursor.fetchall()
@@ -184,7 +178,6 @@ def api_card_detail(wydanie_id):
     conn = get_db()
     cursor = conn.cursor()
 
-    # 1. Pobieramy szczegóły
     sql = """
           SELECT wyd.*, \
                  wz.wzor_opis, \
@@ -210,21 +203,8 @@ def api_card_detail(wydanie_id):
 
     if row is None:
         return jsonify({'error': 'Pocztówka nie istnieje'}), 404
-            
-    data = dict_from_row(row)
 
-    # 2. Pobieramy ID poprzedniej i następnej pocztówki (nawigacja)
-    # Pobieramy największe ID mniejsze od obecnego (Poprzedni)
-    cursor.execute("SELECT MAX(wydanie_id) as prev_id FROM wydanie WHERE wydanie_id < ?", (wydanie_id,))
-    prev_row = cursor.fetchone()
-    data['prev_id'] = prev_row['prev_id'] if prev_row else None
-
-    # Pobieramy najmniejsze ID większe od obecnego (Następny)
-    cursor.execute("SELECT MIN(wydanie_id) as next_id FROM wydanie WHERE wydanie_id > ?", (wydanie_id,))
-    next_row = cursor.fetchone()
-    data['next_id'] = next_row['next_id'] if next_row else None
-
-    return jsonify(data)
+    return jsonify(dict_from_row(row))
 
 
 # --- Widoki HTML (Statyczne kontenery) ---
