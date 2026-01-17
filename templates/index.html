@@ -132,30 +132,35 @@
         </form>
     </header>
 
-    <div class="table-wrapper">
-        <table>
-            <thead>
-            <tr>
-                <th style="width: 60px;">Numer</th>
-                <th style="width: 140px;">Awers</th>
-                <th>Dane pocztówki</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody id="resultsBody">
-            <!-- Tu wpadną dane z JS -->
-            <tr>
-                <td colspan="4" style="text-align:center;">Ładowanie danych...</td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th style="width: 60px;">Numer</th>
+                    <th style="width: 140px;">Awers</th>
+                    <th>Dane pocztówki</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="resultsBody">
+                <!-- Tu wpadną dane z JS -->
+                </tbody>
+            </table>
+            <!-- Spinner ładowania na dole -->
+            <div id="loadingIndicator" style="text-align:center; padding: 20px; display: none; color: #777;">
+                Ładowanie kolejnych elementów...
+            </div>
+        </div>
     </div>
-</div>
 
-<script>
-    // 1. Pobieranie danych do Selectów
-    async function loadFilters() {
-        try {
+    <script>
+        let currentOffset = 0;
+        let isLoading = false;
+        let hasMore = true; // Czy są jeszcze dane do pobrania
+
+        // 1. Pobieranie danych do Selectów
+        async function loadFilters() {
+            try {
             const response = await fetch('/api/filters');
             const data = await response.json();
 
@@ -177,93 +182,135 @@
         });
     }
 
-    // 2. Pobieranie listy pocztówek
-    async function loadCards() {
-        const tbody = document.getElementById('resultsBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Pobieranie...</td></tr>';
+ // 2. Pobieranie listy pocztówek
+        async function loadCards(reset = false) {
+            if (isLoading || (!hasMore && !reset)) return;
 
-        // Zbieramy dane z formularza
-        const formData = new FormData(document.getElementById('searchForm'));
-        const params = new URLSearchParams(formData);
+            isLoading = true;
+            const tbody = document.getElementById('resultsBody');
+            const loadingIndicator = document.getElementById('loadingIndicator');
 
-        // Obsługa parametrów z URL (np. jeśli ktoś wejdzie z linku)
-        const urlParams = new URLSearchParams(window.location.search);
-        // Jeśli formularz jest pusty, a w URL są parametry, użyjmy URL do wypełnienia formularza (opcjonalne UX)
-        for (const key of ['q','wydawca_id','autor_id','miasto_id','dupa']) {
-            value = urlParams.get(key);
-            if (value != null && value != 0 && value != "") {
-                if (!params.get(key))
-                    params.set(key, value);
-                console.log(key, value);
+            loadingIndicator.style.display = 'block';
+
+            if (reset) {
+                currentOffset = 0;
+                hasMore = true;
+                tbody.innerHTML = '';
+            }
+
+            // Zbieramy dane z formularza
+            const formData = new FormData(document.getElementById('searchForm'));
+            const params = new URLSearchParams(formData);
+
+            // Dodajemy offset
+            params.set('offset', currentOffset);
+
+            // Obsługa parametrów z URL (tylko przy pierwszym ładowaniu)
+            if (reset) {
+                 const urlParams = new URLSearchParams(window.location.search);
+                 for (const key of ['q','wydawca_id','autor_id','miasto_id']) {
+                    const value = urlParams.get(key);
+                    if (value && !params.get(key)) {
+                        params.set(key, value);
+                        // Wypełnij też formularz
+                        const field = document.getElementsByName(key)[0];
+                        if(field) field.value = value;
+                    }
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/search?${params.toString()}`);
+                const cards = await response.json();
+
+                if (cards.length === 0) {
+                    hasMore = false;
+                    if (reset) {
+                         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Brak wyników</td></tr>';
+                    }
+                } else {
+                    currentOffset += cards.length; // Przesuwamy offset o tyle ile pobraliśmy
+
+                    cards.forEach(p => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'clickable-row';
+                        // Otwieranie w tej samej karcie
+                        tr.onclick = () => window.location = `/view/${p.wydanie_id}`;
+                        // Jeśli chcesz otwierać w nowej karcie:
+                        // tr.onclick = (e) => { if(!e.ctrlKey) window.location = `/view/${p.wydanie_id}`; };
+
+                        const imgHtml = p.awers_id
+                            ? `<img src="/images/${p.awers_id}_mini.jpg" class="thumb-img" alt="Miniatura">`
+                            : `<div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>`;
+
+                        const autorHtml = p.autor_nazwa ? `fot: ${p.autor_nazwa}` : `<span style="color:#7f8c8d;">fot: nieznany</span>`;
+                        const yearHtml = (p.wydanie_rok == "0" || !p.wydanie_rok) ? `<span style="color:#7f8c8d;">nieznany</span>` : p.wydanie_rok;
+                        const nakladHtml = p.wydanie_naklad ? `${p.wydanie_naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
+
+                        tr.innerHTML = `
+                            <td>${p.wzor_numer}</td>
+                            <td>${imgHtml}</td>
+                            <td>
+                                <div style="font-weight:bold; color:#2c3e50;">${p.miasto_nazwa || "Nieznane miasto"}</div>
+                                <div style="font-size:0.9em; color:#555;">${p.wzor_opis || "Brak opisu"}</div>
+                                <div style="font-size:0.8em;">${autorHtml}</div>
+                            </td>
+                            <td>
+                                <strong>${p.wydanie_numer}</strong><br>
+                                <div style="font-size:0.85em; color:#7f8c8d;">rok: ${yearHtml}</div>
+                                <div style="font-size:0.85em; color:#7f8c8d;">nakład: ${nakladHtml}</div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                // Aktualizacja URL bez przeładowania (tylko przy resecie)
+                if (reset) {
+                    // Usuwamy offset z URL żeby był czysty
+                    params.delete('offset');
+                    window.history.pushState({}, '', `?${params.toString()}`);
+                }
+
+            } catch (e) {
+                console.error("Błąd ładowania kart", e);
+                tbody.innerHTML += '<tr><td colspan="4" style="text-align:center; color:red;">Błąd pobierania danych</td></tr>';
+            } finally {
+                isLoading = false;
+                loadingIndicator.style.display = 'none';
             }
         }
 
-        try {
-            const response = await fetch(`/api/search?${params.toString()}`);
-            const cards = await response.json();
+        // Obsługa Infinite Scroll
+        function handleScroll() {
+            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
 
-            tbody.innerHTML = '';
-            if (cards.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Brak wyników</td></tr>';
-                return;
+            // Jeśli jesteśmy 100px od dołu strony
+            if (scrollTop + clientHeight >= scrollHeight - 100) {
+                loadCards(false);
             }
-
-            cards.forEach(p => {
-                const tr = document.createElement('tr');
-                tr.className = 'clickable-row';
-                tr.onclick = () => window.location = `/view/${p.wydanie_id}`;
-
-                const imgHtml = p.awers_id
-                    ? `<img src="/images/${p.awers_id}_mini.jpg" class="thumb-img" alt="Miniatura">`
-                    : `<div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>`;
-
-                const autorHtml = p.autor_nazwa ? `fot: ${p.autor_nazwa}` : `<span style="color:#7f8c8d;">fot: nieznany</span>`;
-                const yearHtml = (p.wydanie_rok == "0" || !p.wydanie_rok) ? `<span style="color:#7f8c8d;">nieznany</span>` : p.wydanie_rok;
-                const nakladHtml = p.wydanie_naklad ? `${p.wydanie_naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
-
-                tr.innerHTML = `
-                    <td>${p.wzor_numer}</td>
-                    <td>${imgHtml}</td>
-                    <td>
-                        <div style="font-weight:bold; color:#2c3e50;">${p.miasto_nazwa || "Nieznane miasto"}</div>
-                        <div style="font-size:0.9em; color:#555;">${p.wzor_opis || "Brak opisu"}</div>
-                        <div style="font-size:0.8em;">${autorHtml}</div>
-                    </td>
-                    <td>
-                        <strong>${p.wydanie_numer}</strong><br>
-                        <div style="font-size:0.85em; color:#7f8c8d;">rok: ${yearHtml}</div>
-                        <div style="font-size:0.85em; color:#7f8c8d;">nakład: ${nakladHtml}</div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // Aktualizacja URL bez przeładowania (dla bookmarkowania)
-            window.history.pushState({}, '', `?${params.toString()}`);
-
-        } catch (e) {
-            console.error("Błąd ładowania kart", e);
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Błąd serwera</td></tr>';
         }
-    }
 
-    // Event Listeners
-    document.addEventListener('DOMContentLoaded', () => {
-        loadFilters();
-        loadCards();
-    });
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFilters();
+            loadCards(true); // Pierwsze ładowanie (reset)
+        });
 
-    document.getElementById('searchForm').addEventListener('submit', (e) => {
-        e.preventDefault(); // Nie przeładowuj strony
-        loadCards();
-    });
+        // Podpięcie scrolla
+        window.addEventListener('scroll', handleScroll);
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
-        document.getElementById('searchForm').reset();
-        loadCards();
-    });
+        document.getElementById('searchForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadCards(true); // Reset i nowe szukanie
+        });
 
-</script>
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            document.getElementById('searchForm').reset();
+            loadCards(true);
+        });
+
+    </script>
 
 </body>
 </html>
