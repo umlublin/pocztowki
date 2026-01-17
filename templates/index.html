@@ -136,7 +136,7 @@
         <table>
             <thead>
             <tr>
-                <th style="width: 60px;">Wzór</th>
+                <th style="width: 60px;">Numer</th>
                 <th style="width: 140px;">Awers</th>
                 <th>Dane pocztówki</th>
                 <th></th>
@@ -189,10 +189,12 @@
         // Obsługa parametrów z URL (np. jeśli ktoś wejdzie z linku)
         const urlParams = new URLSearchParams(window.location.search);
         // Jeśli formularz jest pusty, a w URL są parametry, użyjmy URL do wypełnienia formularza (opcjonalne UX)
-        for (const [key, value] of urlParams.entries()) {
-            if (document.getElementsByName(key).length > 0 && !params.get(key)) {
-                document.getElementsByName(key)[0].value = value;
-                params.set(key, value);
+        for (const key of ['q','wydawca_id','autor_id','miasto_id','dupa']) {
+            value = urlParams.get(key);
+            if (value != null && value != 0 && value != "") {
+                if (!params.get(key))
+                    params.set(key, value);
+                console.log(key, value);
             }
         }
 
@@ -215,12 +217,12 @@
                     ? `<img src="/images/${p.awers_id}_mini.jpg" class="thumb-img" alt="Miniatura">`
                     : `<div class="thumb-img" style="display:flex; align-items:center; justify-content:center; color:#999;">Brak</div>`;
 
-                const autorHtml = p.autor_nazwa ? `Fotograf: ${p.autor_nazwa}` : `<span style="color:#7f8c8d;">Fotograf: nieznany</span>`;
+                const autorHtml = p.autor_nazwa ? `fot: ${p.autor_nazwa}` : `<span style="color:#7f8c8d;">fot: nieznany</span>`;
                 const yearHtml = (p.wydanie_rok == "0" || !p.wydanie_rok) ? `<span style="color:#7f8c8d;">nieznany</span>` : p.wydanie_rok;
                 const nakladHtml = p.wydanie_naklad ? `${p.wydanie_naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
 
                 tr.innerHTML = `
-                    <td>${p.wzor_id}</td>
+                    <td>${p.wzor_numer}</td>
                     <td>${imgHtml}</td>
                     <td>
                         <div style="font-weight:bold; color:#2c3e50;">${p.miasto_nazwa || "Nieznane miasto"}</div>

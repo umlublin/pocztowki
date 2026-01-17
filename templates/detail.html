@@ -53,12 +53,6 @@
             <div class="data-row"><span class="data-label">Zamówienie:</span> <span id="zamowienieVal"></span></div>
 
             <div class="data-row" id="wydawcaRow" style="display:none;"><span class="data-label">Wydawca:</span> <span id="wydawcaVal"></span></div>
-
-            <br>
-            <div style="background: #eef; padding: 10px; border-radius: 4px; font-size: 0.9em;">
-                <strong>Debug Info:</strong><br>
-                Wzór ID: <span id="debugWzorId"></span> || Author ID: <span id="debugAuthorId"></span>
-            </div>
         </div>
     </div>
 </div>
@@ -76,8 +70,8 @@
             const p = await response.json();
 
             // Uzupełnianie tytułu
-            document.title = `Pocztówka ${p.id} - ${p.wzor_full}`;
-            document.getElementById('pageTitle').textContent = `Wydanie ${p.wzor_full}`;
+            document.title = `Pocztówka ${p.wydanie_id} - ${p.wydanie_numer}`;
+            document.getElementById('pageTitle').textContent = `Wydanie ${p.wydanie_numer}`;
             
             // Obrazki
             const imgContainer = document.getElementById('imagesContainer');
@@ -101,26 +95,26 @@
             }
 
             // Dane tekstowe
-            document.getElementById('cityName').textContent = p.miasto || "Nieznane miasto";
-            document.getElementById('opisWzoru').textContent = p.opis_wzoru || "Brak opisu";
-            document.getElementById('wzorFull').textContent = p.wzor_full;
+            document.getElementById('cityName').textContent = p.miasto_nazwa || "Nieznane miasto";
+            document.getElementById('opisWzoru').textContent = p.wzor_opis || "Brak opisu";
+            document.getElementById('wzorFull').textContent = p.wydanie_numer;
 
             // Link do numeru wzoru
             document.getElementById('numerWzoruContainer').innerHTML = 
-                `<a href="/?publisher_id=${p.wydawca_id}&numer_wzoru=${p.numer_wzoru}">${p.wydawca_id}-${p.numer_wzoru}</a>`;
+                `<a href="/?wydawca_id=${p.wydawca_id}&wzor_numer=${p.wzor_numer}">${p.wydawca_id}-${p.wzor_numer}</a>`;
 
             // Autor
             let autorHtml = "";
-            if (p.autor) autorHtml += `<a href="/?author_id=${p.author_id}">${p.autor}</a> `;
+            if (p.autor_nazwa) autorHtml += `<a href="/?autor_id=${p.autor_id}">${p.autor_nazwa}</a> `;
             if (p.autor_lata) autorHtml += `(${p.autor_lata}) `;
             if (p.autor_url) autorHtml += `<a href="${p.autor_url}" target="_blank">[link]</a>`;
             document.getElementById('autorContainer').innerHTML = autorHtml || "-";
 
-            document.getElementById('yearVal').textContent = p.year == 0 ? 'Nieznany' : p.year
-            document.getElementById('nakladVal').textContent = p.naklad || "Nieznany";
+            document.getElementById('yearVal').textContent = p.wydanie_rok == 0 ? 'Nieznany' : p.wydanie_rok
+            document.getElementById('nakladVal').textContent = p.wydanie_naklad || "Nieznany";
             
             // Cenzura
-            let cenz = (p.cenzura || "-") + " (" + (p.cenzor_full || "-") + ")";
+            let cenz = (p.wydanie_cenzura || "-") + " (" + (p.cenzura_numer || "-") + ")";
             document.getElementById('cenzuraVal').textContent = cenz;
 
             // Tagi
@@ -131,15 +125,12 @@
                 ).join(' ');
             }
 
-            document.getElementById('zamowienieVal').textContent = p.zamowienie || "-";
+            document.getElementById('zamowienieVal').textContent = p.wydanie_zamowienie || "-";
 
             if (p.wydawca) {
                 document.getElementById('wydawcaRow').style.display = 'block';
-                document.getElementById('wydawcaVal').textContent = p.wydawca;
+                document.getElementById('wydawcaVal').textContent = p.wydawca_nazwa;
             }
-
-            document.getElementById('debugWzorId').textContent = p.wzor_id;
-            document.getElementById('debugAuthorId').textContent = p.author_id;
 
             // Pokaż kontener
             document.getElementById('loading').style.display = 'none';

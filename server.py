@@ -111,7 +111,7 @@ def api_search():
     miasto_filter = request.args.get('miasto_id', type=int)
     autor_filter = request.args.get('autor_id', type=int)
     wydawca_filter = request.args.get('wydawca_id', type=int)
-    wzor_numer = request.args.get('wzor_numer', type=int)
+    wzor_numer = request.args.get('wzor_numer', type=str)
 
     conn = get_db()
     cursor = conn.cursor()
@@ -129,7 +129,7 @@ def api_search():
                  wz.wzor_id, \
                  wz.wzor_opis, \
                  wz.wydawca_id, \
-                 concat(wz.wydawca_id, '-', wz.wzor_numer) as wzor_id, \
+                 concat(wz.wydawca_id, '-', wz.wzor_numer) as wzor_numer, \
                  wz.wzor_opis, \
                  m.miasto_nazwa, \
                  a.autor_nazwa
@@ -162,10 +162,10 @@ def api_search():
         sql += " AND wz.wydawca_id = ?"
         params.append(wydawca_filter)
     if wzor_numer:
-        sql += " AND wz.wzor_numer = ?"
+        sql += " AND wzor_numer = ?"
         params.append(wzor_numer)
 
-    sql += " ORDER BY wyd.wydanie_id DESC LIMIT 100"
+    sql += " ORDER BY wyd.wydanie_rok LIMIT 10"
 
     cursor.execute(sql, params)
     rows = cursor.fetchall()
@@ -173,34 +173,32 @@ def api_search():
     return jsonify(dict_list_from_rows(rows))
 
 
-@app.route('/api/card/<int:card_id>')
-def api_card_detail(card_id):
+@app.route('/api/card/<int:wydanie_id>')
+def api_card_detail(wydanie_id):
     conn = get_db()
     cursor = conn.cursor()
 
     sql = """
-          SELECT w.*, \
-                 wz.opis         as opis_wzoru, \
+          SELECT wyd.*, \
+                 wz.wzor_opis, \
                  wz.wydawca_id, \
-                 wz.numer_wzoru, \
-                 m.name          as miasto, \
-                 m.aliases       as miasto_alias, \
-                 a.id            as author_id, \
-                 a.imie_nazwisko as autor, \
-                 a.lata          as autor_lata, \
-                 a.url           as autor_url, \
-                 c.oznaczenie    as cenzura, \
-                 w.cenzor_full as cenzor_full, \
-                 wyd.name        as wydawca
-          FROM wydanie w
-                   LEFT JOIN wzory wz ON w.wzor_id = wz.id
-                   LEFT JOIN miasta m ON wz.city_id = m.id
-                   LEFT JOIN autorzy a ON wz.author_id = a.id
-                   LEFT JOIN cenzura c ON w.cenzor_id = c.id
-                   LEFT JOIN wydawcy wyd ON wz.wydawca_id = wyd.id
-          WHERE w.id = ? \
+                 wz.wzor_numer, \
+                 m.miasto_nazwa,\
+                 a.autor_id, \
+                 a.autor_nazwa, \
+                 a.autor_lata, \
+                 a.autor_url, \
+                 c.cenzura_numer, \
+                 pub.wydawca_nazwa
+          FROM wydanie wyd
+                   LEFT JOIN wzory wz ON wyd.wzor_id = wz.wzor_id
+                   LEFT JOIN miasta m ON wz.miasto_id = m.miasto_id
+                   LEFT JOIN autorzy a ON wz.autor_id = a.autor_id
+                   LEFT JOIN cenzura c ON wyd.cenzura_id = c.cenzura_id
+                   LEFT JOIN wydawcy pub ON wz.wydawca_id = pub.wydawca_id
+          WHERE wyd.wydanie_id = ? \
           """
-    cursor.execute(sql, (card_id,))
+    cursor.execute(sql, (wydanie_id,))
     row = cursor.fetchone()
 
     if row is None:
