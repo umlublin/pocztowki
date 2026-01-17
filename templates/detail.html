@@ -5,160 +5,37 @@
     <title>Ładowanie pocztówki...</title>
     <style>
         /* (Style bez zmian) */
-        body {
-            font-family: sans-serif;
-            background: #f4f7f6;
-            color: #333;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-nav {
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .btn-back {
-            text-decoration: none;
-            color: white;
-            background: #3498db;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .btn-back:hover {
-            background: #2980b9;
-        }
-
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-
-        @media (max-width: 768px) {
-            .grid-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .images-section {
-            text-align: center;
-        }
-
-        .image-box {
-            margin-bottom: 20px;
-            background: #f9f9f9;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 4px;
-        }
-
-        .image-box img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-        }
-
-        /* cursor pointer dla obrazka */
-        .label {
-            font-weight: bold;
-            color: #7f8c8d;
-            display: block;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            font-size: 0.8em;
-        }
-
-        .info-section h2 {
-            margin-top: 0;
-            color: #2c3e50;
-        }
-
-        .data-row {
-            margin-bottom: 12px;
-            border-bottom: 1px solid #f0f0f0;
-            padding-bottom: 8px;
-        }
-
-        .data-label {
-            font-weight: bold;
-            color: #555;
-            width: 120px;
-            display: inline-block;
-        }
-
-        .badge {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            background: #e8f6f3;
-            color: #1abc9c;
-            margin-right: 5px;
-        }
-
-        a {
-            color: #3498db;
-            text-decoration: none;
-        }
+        body { font-family: sans-serif; background: #f4f7f6; color: #333; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+        .header-nav { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-back { text-decoration: none; color: white; background: #3498db; padding: 8px 15px; border-radius: 4px; font-size: 14px; }
+        .btn-back:hover { background: #2980b9; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
+        .images-section { text-align: center; }
+        .image-box { margin-bottom: 20px; background: #f9f9f9; padding: 10px; border: 1px solid #eee; border-radius: 4px; }
+        .image-box img { max-width: 100%; height: auto; display: block; margin: 0 auto; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); cursor: pointer; } 
+        .label { font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 5px; text-transform: uppercase; font-size: 0.8em; }
+        .info-section h2 { margin-top: 0; color: #2c3e50; }
+        .data-row { margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .data-label { font-weight: bold; color: #555; width: 120px; display: inline-block; vertical-align: top; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; background: #e8f6f3; color: #1abc9c; margin-right:5px;}
+        a { color: #3498db; text-decoration: none; }
 
         /* Modal Styles */
-        #imageModal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.9);
-            justify-content: center;
-            align-items: center;
-        }
+        #imageModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
+        #modalImg { margin: auto; display: block; max-width: 95%; max-height: 95%; border-radius: 4px; }
+        .close-modal { position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; }
+        .close-modal:hover, .close-modal:focus { color: #bbb; text-decoration: none; cursor: pointer; }
 
-        #modalImg {
-            margin: auto;
-            display: block;
-            max-width: 95%;
-            max-height: 95%;
-            border-radius: 4px;
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 15px;
-            right: 35px;
-            color: #f1f1f1;
-            font-size: 40px;
-            font-weight: bold;
-            transition: 0.3s;
-            cursor: pointer;
-        }
-
-        .close-modal:hover,
-        .close-modal:focus {
-            color: #bbb;
-            text-decoration: none;
-            cursor: pointer;
-        }
+        /* Form Styles */
+        .form-control { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;}
+        .checkbox-item { display: flex; align-items: center; background: #eee; padding: 5px 10px; border-radius: 15px; font-size: 0.9em; }
+        .checkbox-item input { margin-right: 5px; }
+        .btn-edit-toggle { background: #f39c12; color: white; border:none; border-radius:4px; padding: 5px 10px; cursor: pointer; font-size: 0.9em;}
+        .btn-save { background: #27ae60; color: white; border:none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .btn-cancel { background: #95a5a6; color: white; border:none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -181,32 +58,75 @@
         </div>
 
         <div class="info-section">
-            <h2 id="cityName"></h2>
-
-            <!-- Nawigacja (widoczna też w sekcji info) -->
-            <div style="margin-bottom:15px; font-size: 0.9em;">
-                <button id="btnPrev" style="margin-right:10px;">&larr; Poprzedni</button>
-                <button id="btnNext">Następny &rarr;</button>
-                <span style="margin-left:10px; color:#999; font-size:0.8em;">(Użyj strzałek na klawiaturze)</span>
+            <!-- Nawigacja -->
+            <div style="margin-bottom:15px; font-size: 0.9em; display:flex; align-items:center;">
+                 <button id="btnPrev" style="margin-right:10px;">&larr; Poprzedni</button>
+                 <button id="btnNext" style="margin-right:20px;">Następny &rarr;</button>
+                 <button id="btnEdit" class="btn-edit-toggle">Edytuj (E)</button>
+                 <span style="margin-left:10px; color:#999; font-size:0.8em;">(Strzałki / A / R)</span>
             </div>
 
-            <p style="font-size: 1.1em; font-style: italic;" id="opisWzoru"></p>
+            <!-- Kontener na dane (View Mode) -->
+            <div id="viewMode">
+                <h2 id="cityName"></h2>
+                <p style="font-size: 1.1em; font-style: italic;" id="opisWzoru"></p>
 
-            <div class="data-row"><span class="data-label">Nr wydania:</span> <span id="wzorFull"></span></div>
-            <div class="data-row"><span class="data-label">Numer wzoru:</span> <span id="numerWzoruContainer"></span>
+                <div class="data-row"><span class="data-label">Nr wydania:</span> <span id="wzorFull"></span></div>
+                <div class="data-row"><span class="data-label">Numer wzoru:</span> <span id="numerWzoruContainer"></span></div>
+                <div class="data-row"><span class="data-label">Fotograf:</span> <span id="autorContainer"></span></div>
+                <div class="data-row"><span class="data-label">Rok:</span> <span id="yearVal"></span></div>
+                <div class="data-row"><span class="data-label">Nakład:</span> <span id="nakladVal"></span></div>
+                <div class="data-row"><span class="data-label">Cenzura:</span> <span id="cenzuraVal"></span></div>
+                <div class="data-row"><span class="data-label">Tagi:</span> <span id="tagsContainer"></span></div>
+                <div class="data-row"><span class="data-label">Zamówienie:</span> <span id="zamowienieVal"></span></div>
+                <div class="data-row" id="wydawcaRow" style="display:none;"><span class="data-label">Wydawca:</span> <span id="wydawcaVal"></span></div>
             </div>
 
-            <div class="data-row"><span class="data-label">Fotograf:</span> <span id="autorContainer"></span></div>
+            <!-- Kontener na formularz (Edit Mode) -->
+            <div id="editMode" style="display:none;">
+                <form id="editForm">
+                    <div class="data-row">
+                        <label class="data-label">Miasto:</label>
+                        <select id="editCity" class="form-control"></select>
+                    </div>
+                    
+                    <div class="data-row">
+                        <label class="data-label">Opis wzoru:</label>
+                        <textarea id="editOpis" class="form-control" rows="3"></textarea>
+                    </div>
 
-            <div class="data-row"><span class="data-label">Rok:</span> <span id="yearVal"></span></div>
-            <div class="data-row"><span class="data-label">Nakład:</span> <span id="nakladVal"></span></div>
-            <div class="data-row"><span class="data-label">Cenzura:</span> <span id="cenzuraVal"></span></div>
+                    <div class="data-row">
+                        <label class="data-label">Nr wydania:</label>
+                        <input type="text" id="editNumerWydania" class="form-control">
+                    </div>
 
-            <div class="data-row"><span class="data-label">Tagi:</span> <span id="tagsContainer"></span></div>
-            <div class="data-row"><span class="data-label">Zamówienie:</span> <span id="zamowienieVal"></span></div>
+                    <div class="data-row">
+                        <label class="data-label">Autor:</label>
+                        <select id="editAutor" class="form-control"></select>
+                    </div>
+                    
+                    <div class="data-row">
+                        <label class="data-label">Wydawca:</label>
+                        <select id="editWydawca" class="form-control"></select>
+                    </div>
 
-            <div class="data-row" id="wydawcaRow" style="display:none;"><span class="data-label">Wydawca:</span> <span
-                    id="wydawcaVal"></span></div>
+                    <div class="data-row">
+                        <label class="data-label">Rok:</label>
+                        <input type="number" id="editRok" class="form-control">
+                    </div>
+                    
+                    <div class="data-row">
+                        <label class="data-label">Tagi:</label>
+                        <div id="editTags" class="checkbox-group"></div>
+                    </div>
+
+                    <div style="margin-top:20px;">
+                        <button type="button" class="btn-save" onclick="saveChanges()">Zapisz (fake)</button>
+                        <button type="button" class="btn-cancel" onclick="toggleEditMode(false)">Anuluj</button>
+                    </div>
+                </form>
+            </div>
+
         </div>
     </div>
 </div>
@@ -214,177 +134,252 @@
 <div id="loading" style="text-align:center; padding:50px;">Ładowanie danych pocztówki...</div>
 
 <script>
-    // Pobranie ID z URL (ostatni segment) na start
     let currentCardId = window.location.pathname.split('/').pop();
-
-    // Zmienne na ID sąsiadów
+    let currentCardData = null; // Przechowuje pełne dane obiektu
+    let filtersData = null;     // Cache dla filtrów (miasta, autorzy itp)
+    
+    // Zmienne nawigacji
     let nextCardId = null;
     let prevCardId = null;
-
-    // Zmienne na ID obrazków (dla skrótów A/R)
     let awersId = null;
     let rewersId = null;
 
+    let isEditMode = false;
+
+    // --- Pobieranie Danych ---
+
+    async function loadFiltersIfNeeded() {
+        if (filtersData) return;
+        try {
+            const res = await fetch('/api/filters');
+            filtersData = await res.json();
+        } catch (e) {
+            console.error("Błąd filtrów", e);
+        }
+    }
+
     async function loadCardDetails(id) {
-        // Pokaż loader, ukryj kontener przy zmianie karty
+        if (isEditMode) toggleEditMode(false); // Wyjdź z edycji przy zmianie karty
+
         document.getElementById('loading').style.display = 'block';
         document.getElementById('mainContainer').style.display = 'none';
-        document.getElementById('imagesContainer').innerHTML = ''; // Wyczyść stare zdjęcia
+        document.getElementById('imagesContainer').innerHTML = '';
 
-        awersId = null;
-        rewersId = null;
+        awersId = null; rewersId = null;
 
         try {
             const response = await fetch(`/api/card/${id}`);
             if (!response.ok) throw new Error("Błąd pobierania");
-            const p = await response.json();
+            currentCardData = await response.json(); // Zapisujemy do globalnej zmiennej
+            const p = currentCardData;
 
-            // Aktualizujemy globalne zmienne nawigacji
+            // Nawigacja
             currentCardId = p.wydanie_id;
             nextCardId = p.next_id;
             prevCardId = p.prev_id;
-
-            // Aktualizacja URL (SPA)
             window.history.pushState({id: currentCardId}, '', `/view/${currentCardId}`);
 
-            // Uzupełnianie tytułu
-            document.title = `Pocztówka ${p.wydanie_id} - ${p.wydanie_numer}`;
+            // UI - Header
+            document.title = `Pocztówka ${p.wydanie_id}`;
             document.getElementById('pageTitle').textContent = `Wydanie ${p.wydanie_numer}`;
-
+            
             // Obrazki
             const imgContainer = document.getElementById('imagesContainer');
             if (p.awers_id) {
                 awersId = p.awers_id;
-                imgContainer.innerHTML += `
-                        <div class="image-box">
-                            <span class="label">Awers</span>
-                            <img src="/images/${p.awers_id}.jpg" alt="Awers" onclick="openModal('/images/${p.awers_id}.jpg')">
-                        </div>`;
+                imgContainer.innerHTML += `<div class="image-box"><span class="label">Awers</span><img src="/images/${p.awers_id}.jpg" onclick="openModal('/images/${p.awers_id}.jpg')"></div>`;
             }
             if (p.rewers_id) {
                 rewersId = p.rewers_id;
-                imgContainer.innerHTML += `
-                        <div class="image-box">
-                            <span class="label">Rewers</span>
-                            <img src="/images/${p.rewers_id}.jpg" alt="Rewers" onclick="openModal('/images/${p.rewers_id}.jpg')">
-                        </div>`;
+                imgContainer.innerHTML += `<div class="image-box"><span class="label">Rewers</span><img src="/images/${p.rewers_id}.jpg" onclick="openModal('/images/${p.rewers_id}.jpg')"></div>`;
             }
 
-            // Dane tekstowe
-            document.getElementById('cityName').textContent = p.miasto_nazwa || "Nieznane miasto";
-            document.getElementById('opisWzoru').textContent = p.wzor_opis || "Brak opisu";
-            document.getElementById('wzorFull').textContent = p.wydanie_numer;
+            renderViewMode(p);
+            updateNavButtons();
 
-            // Link do numeru wzoru
-            document.getElementById('numerWzoruContainer').innerHTML =
-                `<a href="/?wydawca_id=${p.wydawca_id}&wzor_numer=${p.wzor_numer}">${p.wydawca_id}-${p.wzor_numer}</a>`;
-
-            // Autor
-            let autorHtml = "";
-            if (p.autor_nazwa) autorHtml += `<a href="/?autor_id=${p.autor_id}">${p.autor_nazwa}</a> `;
-            if (p.autor_lata) autorHtml += `(${p.autor_lata}) `;
-            if (p.autor_url) autorHtml += `<a href="${p.autor_url}" target="_blank">[link]</a>`;
-            document.getElementById('autorContainer').innerHTML = autorHtml || "-";
-
-            document.getElementById('yearVal').textContent = p.wydanie_rok == 0 ? 'Nieznany' : p.wydanie_rok
-            document.getElementById('nakladVal').textContent = p.wydanie_naklad || "Nieznany";
-
-            // Cenzura
-            let cenz = (p.wydanie_cenzura || "-") + " (" + (p.cenzura_numer || "-") + ")";
-            document.getElementById('cenzuraVal').textContent = cenz;
-
-            // Tagi
-            if (p.tag) {
-                const tags = p.tag.split(',');
-                document.getElementById('tagsContainer').innerHTML = tags.map(t =>
-                    `<span class="badge"><a href="/?q=${t.trim()}" style="color:inherit; text-decoration:none;">${t.trim()}</a></span>`
-                ).join(' ');
-            }
-
-            document.getElementById('zamowienieVal').textContent = p.wydanie_zamowienie || "-";
-
-            if (p.wydawca) {
-                document.getElementById('wydawcaRow').style.display = 'block';
-                document.getElementById('wydawcaVal').textContent = p.wydawca_nazwa;
-            }
-
-            // Obsługa przycisków nawigacji (UI)
-            const btnPrev = document.getElementById('btnPrev');
-            const btnNext = document.getElementById('btnNext');
-
-            btnPrev.disabled = !prevCardId;
-            btnNext.disabled = !nextCardId;
-
-            btnPrev.onclick = () => {
-                if (prevCardId) loadCardDetails(prevCardId);
-            };
-            btnNext.onclick = () => {
-                if (nextCardId) loadCardDetails(nextCardId);
-            };
-
-            // Pokaż kontener
             document.getElementById('loading').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
 
+            // W tle pobierz filtry, żeby były gotowe do edycji
+            loadFiltersIfNeeded();
+
         } catch (e) {
             console.error(e);
-            document.getElementById('loading').innerHTML = `<h3 style="color:red">Błąd: Nie znaleziono pocztówki lub błąd serwera.</h3><a href="/">Wróć</a>`;
+            document.getElementById('loading').innerHTML = `<h3 style="color:red">Błąd.</h3><a href="/">Wróć</a>`;
         }
     }
 
-    // --- Modal Functions ---
+    function renderViewMode(p) {
+        document.getElementById('cityName').textContent = p.miasto_nazwa || "Nieznane miasto";
+        document.getElementById('opisWzoru').textContent = p.wzor_opis || "Brak opisu";
+        document.getElementById('wzorFull').textContent = p.wydanie_numer;
+        document.getElementById('numerWzoruContainer').innerHTML = `<a href="/?wydawca_id=${p.wydawca_id}&wzor_numer=${p.wzor_numer}">${p.wydawca_id}-${p.wzor_numer}</a>`;
+        
+        let autorHtml = p.autor_nazwa ? `<a href="/?autor_id=${p.autor_id}">${p.autor_nazwa}</a>` : "-";
+        document.getElementById('autorContainer').innerHTML = autorHtml;
+
+        document.getElementById('yearVal').textContent = p.wydanie_rok == 0 ? 'Nieznany' : p.wydanie_rok;
+        document.getElementById('nakladVal').textContent = p.wydanie_naklad || "-";
+        document.getElementById('cenzuraVal').textContent = (p.wydanie_cenzura || "-") + " (" + (p.cenzura_numer || "-") + ")";
+        
+        if (p.tag) {
+            const tags = p.tag.split(',');
+            document.getElementById('tagsContainer').innerHTML = tags.map(t => `<span class="badge">${t.trim()}</span>`).join(' ');
+        } else {
+            document.getElementById('tagsContainer').innerHTML = "-";
+        }
+
+        document.getElementById('zamowienieVal').textContent = p.wydanie_zamowienie || "-";
+
+        if (p.wydawca_nazwa) {
+            document.getElementById('wydawcaRow').style.display = 'block';
+            document.getElementById('wydawcaVal').textContent = p.wydawca_nazwa;
+        } else {
+            document.getElementById('wydawcaRow').style.display = 'none';
+        }
+    }
+
+    // --- Edit Mode Logic ---
+
+    async function toggleEditMode(enable) {
+        isEditMode = enable;
+        const viewDiv = document.getElementById('viewMode');
+        const editDiv = document.getElementById('editMode');
+        const btnEdit = document.getElementById('btnEdit');
+
+        if (isEditMode) {
+            await loadFiltersIfNeeded(); // Upewnij się, że mamy słowniki
+            prepareEditForm();
+            viewDiv.style.display = 'none';
+            editDiv.style.display = 'block';
+            btnEdit.textContent = "Anuluj edycję (Esc)";
+            btnEdit.style.background = "#95a5a6";
+        } else {
+            viewDiv.style.display = 'block';
+            editDiv.style.display = 'none';
+            btnEdit.textContent = "Edytuj (E)";
+            btnEdit.style.background = "#f39c12";
+        }
+    }
+
+    function prepareEditForm() {
+        const p = currentCardData;
+        
+        // Helper do wypełniania selecta
+        const fillSelect = (selectId, items, valueKey, textKey, selectedValue, addNew = true) => {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            
+            // Opcja pusta
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = ""; emptyOpt.textContent = "-- Wybierz --";
+            select.appendChild(emptyOpt);
+
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item[valueKey];
+                opt.textContent = item[textKey];
+                if (item[valueKey] == selectedValue) opt.selected = true;
+                select.appendChild(opt);
+            });
+            
+            if(addNew) {
+                const addOpt = document.createElement('option');
+                addOpt.value = "NEW"; addOpt.textContent = "[ + Dodaj nowy ]";
+                addOpt.style.fontWeight = "bold";
+                select.appendChild(addOpt);
+            }
+        };
+
+        fillSelect('editCity', filtersData.miasta, 'miasto_id', 'miasto_nazwa', p.miasto_id);
+        fillSelect('editAutor', filtersData.autorzy, 'autor_id', 'autor_nazwa', p.autor_id);
+        fillSelect('editWydawca', filtersData.wydawcy, 'wydawca_id', 'wydawca_nazwa', p.wydawca_id);
+
+        document.getElementById('editOpis').value = p.wzor_opis || "";
+        document.getElementById('editNumerWydania').value = p.wydanie_numer || "";
+        document.getElementById('editRok').value = p.wydanie_rok || "";
+
+        // Tagi (Checkboxy)
+        const tagsContainer = document.getElementById('editTags');
+        tagsContainer.innerHTML = '';
+        const currentTags = p.tag ? p.tag.split(',').map(t => t.trim()) : [];
+        
+        // Predefiniowane tagi z API + ewentualne unikalne z obecnej karty
+        const availableTags = new Set([...filtersData.tagi, ...currentTags]);
+        
+        availableTags.forEach(tag => {
+            if(!tag) return;
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.value = tag;
+            if(currentTags.includes(tag)) chk.checked = true;
+            
+            div.appendChild(chk);
+            div.appendChild(document.createTextNode(tag));
+            tagsContainer.appendChild(div);
+        });
+    }
+
+    function saveChanges() {
+        alert("Zapisywanie jeszcze nie działa w backendzie :)");
+        toggleEditMode(false);
+    }
+
+    // --- UI Helpers ---
+
+    function updateNavButtons() {
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        btnPrev.disabled = !prevCardId;
+        btnNext.disabled = !nextCardId;
+        btnPrev.onclick = () => { if (prevCardId) loadCardDetails(prevCardId); };
+        btnNext.onclick = () => { if (nextCardId) loadCardDetails(nextCardId); };
+    }
+
+    document.getElementById('btnEdit').onclick = () => toggleEditMode(!isEditMode);
+
+
+    // --- Modal Logic ---
     const modal = document.getElementById("imageModal");
     const modalImg = document.getElementById("modalImg");
     const closeModalSpan = document.getElementsByClassName("close-modal")[0];
 
-    function openModal(src) {
-        modal.style.display = "flex"; // używamy flex do centrowania
-        modalImg.src = src;
-    }
-
-    function closeModal() {
-        modal.style.display = "none";
-        modalImg.src = ""; // czyszczenie src
-    }
-
+    function openModal(src) { modal.style.display = "flex"; modalImg.src = src; }
+    function closeModal() { modal.style.display = "none"; modalImg.src = ""; }
     closeModalSpan.onclick = closeModal;
+    modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 
-    // Kliknięcie w tło zamyka modal
-    modal.onclick = function (event) {
-        if (event.target === modal) {
-            closeModal();
-        }
-    }
-
-
-    // Obsługa klawiatury
+    // --- Klawiatura ---
     document.addEventListener('keydown', (e) => {
-        // Jeśli modal jest otwarty, Escape zamyka
+        // Modal
         if (modal.style.display === "flex") {
-            if (e.key === "Escape") {
-                closeModal();
-            }
-            return; // Nie obsługuj innych skrótów gdy modal otwarty (opcjonalnie)
+            if (e.key === "Escape") closeModal();
+            return;
         }
 
-        if (e.key === "ArrowLeft" && prevCardId) {
-            loadCardDetails(prevCardId);
-        } else if (e.key === "ArrowRight" && nextCardId) {
-            loadCardDetails(nextCardId);
-        } else if (e.key.toLowerCase() === "a" && awersId) {
-            openModal(`/images/${awersId}.jpg`);
-        } else if (e.key.toLowerCase() === "r" && rewersId) {
-            openModal(`/images/${rewersId}.jpg`);
+        // Edit Mode - blokujemy strzałki nawigacyjne jeśli edytujemy tekst
+        if (isEditMode) {
+             if (e.key === "Escape") toggleEditMode(false);
+             return; // Nie nawiguj strzałkami w trybie edycji
         }
+
+        // View Mode
+        if (e.key === "ArrowLeft" && prevCardId) loadCardDetails(prevCardId);
+        else if (e.key === "ArrowRight" && nextCardId) loadCardDetails(nextCardId);
+        else if (e.key.toLowerCase() === "a" && awersId) openModal(`/images/${awersId}.jpg`);
+        else if (e.key.toLowerCase() === "r" && rewersId) openModal(`/images/${rewersId}.jpg`);
+        else if (e.key.toLowerCase() === "e") toggleEditMode(true);
     });
 
-    // Obsługa przycisku "Wstecz" w przeglądarce (Popstate)
-    window.addEventListener('popstate', (event) => {
+    window.addEventListener('popstate', () => {
         const pathId = window.location.pathname.split('/').pop();
-        if (pathId) loadCardDetails(pathId);
+        if(pathId) loadCardDetails(pathId);
     });
 
     document.addEventListener('DOMContentLoaded', () => loadCardDetails(currentCardId));
+
 </script>
 
 </body>

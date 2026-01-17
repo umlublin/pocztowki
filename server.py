@@ -95,10 +95,14 @@ def api_filters():
     cursor.execute("SELECT wydawca_id, wydawca_nazwa FROM wydawcy ORDER BY wydawca_nazwa ASC")
     publishers = dict_list_from_rows(cursor.fetchall())
 
+    cursor.execute("SELECT cenzura_id, cenzura_numer FROM cenzura ORDER BY cenzura_numer ASC")
+    cenzura = dict_list_from_rows(cursor.fetchall())
+
     return jsonify({
         'miasta': cities,
         'autorzy': authors,
         'wydawcy': publishers,
+        'cenzura': cenzura,
         'tagi': ['panorama', 'kolor', 'ramka', 'lotnicze']
     })
 
@@ -183,6 +187,7 @@ def api_card_detail(wydanie_id):
                  wz.wzor_opis, \
                  wz.wydawca_id, \
                  wz.wzor_numer, \
+                 m.miasto_id, \
                  m.miasto_nazwa,\
                  a.autor_id, \
                  a.autor_nazwa, \
