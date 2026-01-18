@@ -121,7 +121,7 @@
                     </div>
 
                     <div style="margin-top:20px;">
-                        <button type="button" class="btn-save" onclick="saveChanges()">Zapisz (fake)</button>
+                        <button type="button" class="btn-save" onclick="saveChanges()">Zapisz </button>
                         <button type="button" class="btn-cancel" onclick="toggleEditMode(false)">Anuluj</button>
                     </div>
                 </form>
@@ -222,8 +222,8 @@
         document.getElementById('nakladVal').textContent = p.wydanie_naklad || "-";
         document.getElementById('cenzuraVal').textContent = (p.wydanie_cenzura || "-") + " (" + (p.cenzura_numer || "-") + ")";
         
-        if (p.tag) {
-            const tags = p.tag.split(',');
+        if (p.wydanie_tag) {
+            const tags = p.wydanie_tag.split(',');
             document.getElementById('tagsContainer').innerHTML = tags.map(t => `<span class="badge">${t.trim()}</span>`).join(' ');
         } else {
             document.getElementById('tagsContainer').innerHTML = "-";
@@ -302,7 +302,7 @@
         // Tagi (Checkboxy)
         const tagsContainer = document.getElementById('editTags');
         tagsContainer.innerHTML = '';
-        const currentTags = p.tag ? p.tag.split(',').map(t => t.trim()) : [];
+        const currentTags = p.wydanie_tag ? p.wydanie_tag.split(',').map(t => t.trim()) : [];
         
         // Predefiniowane tagi z API + ewentualne unikalne z obecnej karty
         const availableTags = new Set([...filtersData.tagi, ...currentTags]);
@@ -322,9 +322,41 @@
         });
     }
 
-    function saveChanges() {
-        alert("Zapisywanie jeszcze nie działa w backendzie :)");
-        toggleEditMode(false);
+    async function saveChanges() {
+        const data = {
+            miasto_id: document.getElementById('editCity').value,
+            wzor_opis: document.getElementById('editOpis').value,
+            wydanie_numer: document.getElementById('editNumerWydania').value,
+            autor_id: document.getElementById('editAutor').value,
+            wydawca_id: document.getElementById('editWydawca').value,
+            wydanie_rok: document.getElementById('editRok').value,
+            wydanie_tag: Array.from(document.querySelectorAll('#editTags input:checked')).map(cb => cb.value).join(',')
+        };
+
+        if (data.miasto_id === "NEW" || data.autor_id === "NEW" || data.wydawca_id === "NEW") {
+            alert("Dodawanie nowych wpisów słownikowych nie jest zaimplementowane.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/card/${currentCardId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Błąd zapisu");
+            }
+
+            // Po sukcesie przeładuj dane (co wyłączy też tryb edycji)
+            await loadCardDetails(currentCardId);
+            
+        } catch (e) {
+            alert("Błąd: " + e.message);
+            console.error(e);
+        }
     }
 
     // --- UI Helpers ---

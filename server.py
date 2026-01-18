@@ -222,6 +222,64 @@ def api_card_detail(wydanie_id):
     return jsonify(dict_from_row(row))
 
 
+@app.route('/api/card/<int:wydanie_id>', methods=['PUT'])
+def api_card_update(wydanie_id):
+    """Aktualizacja danych pocztówki"""
+    data = request.json
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Pobieramy wzor_id dla danego wydania
+    cursor.execute("SELECT wzor_id FROM wydanie WHERE wydanie_id = ?", (wydanie_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'error': 'Nie znaleziono karty'}), 404
+    wzor_id = row['wzor_id']
+
+    # Helper do czyszczenia danych (puste stringi na None/0)
+    def clean_int(val, default=None):
+        if val == "" or val is None or val == "NEW": return default
+        try:
+            return int(val)
+        except:
+            return default
+
+    miasto_id = clean_int(data.get('miasto_id'))
+    autor_id = clean_int(data.get('autor_id'))
+    wydawca_id = clean_int(data.get('wydawca_id'))
+    wydanie_rok = clean_int(data.get('wydanie_rok'), 0)
+
+    wydanie_numer = data.get('wydanie_numer', '')
+    wzor_opis = data.get('wzor_opis', '')
+    wydanie_tag = data.get('wydanie_tag', '')
+
+    try:
+        # Update Wydanie
+        cursor.execute("""
+                       UPDATE wydanie
+                       SET wydanie_numer = ?,
+                           wydanie_rok   = ?,
+                           wydanie_tag   = ?
+                       WHERE wydanie_id = ?
+                       """, (wydanie_numer, wydanie_rok, wydanie_tag, wydanie_id))
+
+        # Update Wzory (uwaga: zmienia to dane dla wszystkich wydań tego wzoru!)
+        cursor.execute("""
+                       UPDATE wzory
+                       SET miasto_id  = ?,
+                           wzor_opis  = ?,
+                           autor_id   = ?,
+                           wydawca_id = ?
+                       WHERE wzor_id = ?
+                       """, (miasto_id, wzor_opis, autor_id, wydawca_id, wzor_id))
+
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        print(f"Update error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # --- Widoki HTML (Statyczne kontenery) ---
 
 
