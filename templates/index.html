@@ -129,6 +129,7 @@
             </select>
             <button type="submit">Szukaj</button>
             <button type="button" id="resetBtn" style="background:#777;">Reset</button>
+            <select id="sort" name="sort"></select>
         </form>
     </header>
 
@@ -167,6 +168,7 @@
             populateSelect('wydawca_id', data.wydawcy, 'wydawca_id', 'wydawca_nazwa');
             populateSelect('miasto_id', data.miasta, 'miasto_id', 'miasto_nazwa');
             populateSelect('autor_id', data.autorzy, 'autor_id', 'autor_nazwa');
+            populateSelect('sort', data.sort, 'field_id', 'field_name');
         } catch (e) {
             console.error("Błąd ładowania filtrów", e);
         }
@@ -208,7 +210,7 @@
             // Obsługa parametrów z URL (tylko przy pierwszym ładowaniu)
             if (reset) {
                  const urlParams = new URLSearchParams(window.location.search);
-                 for (const key of ['q','wydawca_id','autor_id','miasto_id']) {
+                 for (const key of ['q','wydawca_id','autor_id','miasto_id','sort']) {
                     const value = urlParams.get(key);
                     if (value && !params.get(key)) {
                         params.set(key, value);
@@ -248,7 +250,7 @@
                         const nakladHtml = p.wydanie_naklad ? `${p.wydanie_naklad}` : `<span style="color:#7f8c8d;">nieznany</span>`;
 
                         tr.innerHTML = `
-                            <td>${p.wzor_numer}</td>
+                            <td>${p.wydawca_wzor_numer}</td>
                             <td>${imgHtml}</td>
                             <td>
                                 <div style="font-weight:bold; color:#2c3e50;">${p.miasto_nazwa || "Nieznane miasto"}</div>

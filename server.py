@@ -103,7 +103,12 @@ def api_filters():
         'autorzy': authors,
         'wydawcy': publishers,
         'cenzura': cenzura,
-        'tagi': ['panorama', 'kolor', 'ramka', 'lotnicze']
+        'tagi': ['panorama', 'kolor', 'ramka', 'lotnicze'],
+        'sort': [{'field_id': 'wydanie_rok', 'field_name': "Rok wydania"},
+                 {'field_id': 'wzor_numer', 'field_name': 'Numer'},
+                 {'field_id': 'miasto_nazwa', 'field_name': 'Miasto'},
+                 {'field_id': 'autor_nazwa', 'field_name': 'Autor'},
+                 {'field_id': 'wydawca_nazwa', 'field_name': 'Wydawca'}]
     })
 
 
@@ -116,6 +121,8 @@ def api_search():
     autor_filter = request.args.get('autor_id', type=int)
     wydawca_filter = request.args.get('wydawca_id', type=int)
     wzor_numer = request.args.get('wzor_numer', type=str)
+    sort_filter = request.args.get('sort', type=str, default='wydanie_rok')
+    offset = request.args.get('offset', type=int, default=0)
 
     conn = get_db()
     cursor = conn.cursor()
@@ -133,7 +140,8 @@ def api_search():
                  wz.wzor_id, \
                  wz.wzor_opis, \
                  wz.wydawca_id, \
-                 concat(wz.wydawca_id, '-', wz.wzor_numer) as wzor_numer, \
+                 wz.wzor_numer, \
+                 concat(wz.wydawca_id, '-', wz.wzor_numer) as wydawca_wzor_numer, \
                  wz.wzor_opis, \
                  m.miasto_nazwa, \
                  a.autor_nazwa
@@ -169,7 +177,8 @@ def api_search():
         sql += " AND wzor_numer = ?"
         params.append(wzor_numer)
 
-    sql += " ORDER BY wyd.wydanie_rok LIMIT 10"
+    if sort_filter:
+        sql += f" ORDER BY {sort_filter} LIMIT 10 OFFSET {offset}"
 
     cursor.execute(sql, params)
     rows = cursor.fetchall()
