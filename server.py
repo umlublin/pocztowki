@@ -177,6 +177,7 @@ def api_search():
         sql += " AND wzor_numer = ?"
         params.append(wzor_numer)
 
+    #TODO: dodac zabezpieczenie przed SQL injectionm
     if sort_filter:
         sql += f" ORDER BY {sort_filter} LIMIT 10 OFFSET {offset}"
 
