@@ -39,7 +39,9 @@
     </style>
 </head>
 <body>
-
+<div class="user-info" id="user-info">
+    <div class="user-info-frame" id="user-info-frame"></div>
+</div>
 <!-- Modal -->
 <div id="imageModal">
     <span class="close-modal">&times;</span>
@@ -145,6 +147,24 @@
     let rewersId = null;
 
     let isEditMode = false;
+    let userdata = {};
+
+    function updateUserData() {
+        container = document.getElementById("user-info-frame")
+        container.replaceChildren()
+        if (!userdata.nickname) {
+            container.insertAdjacentHTML('beforeend', '<a href="/login" title="Zaloguj"><img src="/icons/icons8-login-32.png"></a>');
+        } else {
+            container.insertAdjacentHTML('beforeend', `<a href="/logout" title="Wyloguj"><img src="/icons/icons8-logout-32.png"></a> ${userdata.nickname} `);
+        }
+    }
+
+    async function loadUSerData() {
+        let res = await fetch(`/api/userdata.json`, {headers: {'Accept': 'application/json'}});
+        if (!res.ok) throw new Error('Failed to load');
+        userdata = await res.json();
+        updateUserData(); 
+    }
 
     // --- Pobieranie Danych ---
 
@@ -216,6 +236,9 @@
         document.getElementById('numerWzoruContainer').innerHTML = `<a href="/?wydawca_id=${p.wydawca_id}&wzor_numer=${p.wzor_numer}">${p.wydawca_id}-${p.wzor_numer}</a>`;
         
         let autorHtml = p.autor_nazwa ? `<a href="/?autor_id=${p.autor_id}">${p.autor_nazwa}</a>` : "-";
+        if (p.autor_url) {
+            autorHtml += ` - <a target="_blank" href="${p.autor_url}">Wikipedia</a>`;
+        }
         document.getElementById('autorContainer').innerHTML = autorHtml;
 
         document.getElementById('yearVal').textContent = p.wydanie_rok == 0 ? 'Nieznany' : p.wydanie_rok;
@@ -410,7 +433,10 @@
         if(pathId) loadCardDetails(pathId);
     });
 
-    document.addEventListener('DOMContentLoaded', () => loadCardDetails(currentCardId));
+    document.addEventListener('DOMContentLoaded', () => {
+        loadUSerData()
+        loadCardDetails(currentCardId);
+    });
 
 </script>
 

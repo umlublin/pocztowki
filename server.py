@@ -1,14 +1,72 @@
+from logging.handlers import RotatingFileHandler
+import logging
+from urllib.parse import quote_plus, urlencode
+from authlib.integrations.flask_client import OAuth
 import sqlite3
 import os
-from flask import Flask, render_template, request, g, send_from_directory, abort, jsonify
+from os import environ as env
+from flask import Flask, redirect, render_template, request, g, send_from_directory, abort, jsonify,session
 from PIL import Image
+from requests.compat import quote_plus
+from waitress import serve
+from dotenv import find_dotenv, load_dotenv
+
+ENV_FILE = find_dotenv()
+if ENV_FILE:
+    print("Load .env values from", ENV_FILE)
+    load_dotenv(ENV_FILE)
+
+MY_URL = env.get("MY_URL")
+DATA_ROOT = env.get("DATA_ROOT", "./")
+
+admins = []
+admins.append(env.get('ADMIN_SID'))
+admins.append(env.get('ADMIN_SID_BACKUP'))
+
+file_handler = RotatingFileHandler(env.get("LOG_ROOT", './') + 'pocztowka_app.log', maxBytes=1024000, backupCount=10)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s'
+))
+file_handler.setLevel(logging.INFO)
 
 app = Flask(__name__)
-DATABASE = './instance/pocztowki.db'
-IMAGE_FOLDER = './images'
-THUMB_FOLDER = './images/thumbnails'
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
+
+app.secret_key = env.get("APP_SECRET_KEY")
+
+
+DATABASE = os.path.join(DATA_ROOT, 'instance/pocztowki.db')
+IMAGE_FOLDER = os.path.join(DATA_ROOT, 'images')
+THUMB_FOLDER = os.path.join(DATA_ROOT, 'images/thumbnails')
 THUMB_SIZE = 120  # Max szerokość/wysokość w pikselach
 
+oauth = OAuth(app)
+
+oauth.register(
+    "auth0",
+    client_id=env.get("AUTH0_CLIENT_ID"),
+    client_secret=env.get("AUTH0_CLIENT_SECRET"),
+    client_kwargs={
+        "scope": "openid profile email",
+    },
+    server_metadata_url=f'https://{env.get("AUTH0_DOMAIN")}/.well-known/openid-configuration'
+)
+
+def is_logged_in():
+    return session.get('user')
+
+
+def get_user_data():
+    userdata = {}
+    if session.get('user'):
+        userdata = session.get('user')['userinfo']
+        if userdata.get('sub') in admins:
+            userdata['is_admin'] = True
+        else:
+            userdata['is_admin'] = False
+
+    return userdata
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -17,6 +75,14 @@ def get_db():
         db.row_factory = sqlite3.Row
     return db
 
+@app.before_request
+def log_request_info():
+    # app.logger.info('Headers: %s', request.headers)
+    # app.logger.info('Body: %s', request.get_data())
+    email = get_user_data().get("email", "")
+    ip = request.headers.get('X-Real-Ip', '0.0.0.0')
+    app.logger.info('%s (%s) %s %s', ip, email, request.method, request.path)
+
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -24,6 +90,37 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+@app.route("/login")
+def login():
+    return oauth.auth0.authorize_redirect(
+        redirect_uri=f'{env.get("MY_URL")}callback'
+    )
+
+
+@app.route("/callback", methods=["GET", "POST"])
+def callback():
+    token = oauth.auth0.authorize_access_token()
+    session["user"] = token
+    return redirect("/")        
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(
+        "https://" + env.get("AUTH0_DOMAIN")
+        + "/v2/logout?"
+        + urlencode(
+            {
+                "returnTo": f'{env.get("MY_URL")}',
+                "client_id": env.get("AUTH0_CLIENT_ID"),
+            },
+            quote_via=quote_plus,
+        )
+    )
+
+@app.route("/api/userdata.json")
+def userdata():
+    return jsonify(get_user_data())
 
 # Helper do konwersji wierszy DB na dict (dla JSON)
 def dict_from_row(row):
@@ -38,6 +135,9 @@ def ensure_thumb_folder():
     if not os.path.exists(THUMB_FOLDER):
         os.makedirs(THUMB_FOLDER)
 
+@app.route('/icons/<path:path>')
+def send_icons(path):
+    return send_from_directory(DATA_ROOT + 'icons', path)
 
 @app.route('/images/<int:img_id>.jpg')
 def serve_original_image(img_id):
@@ -225,6 +325,8 @@ def api_card_detail(wydanie_id):
 @app.route('/api/card/<int:wydanie_id>', methods=['PUT'])
 def api_card_update(wydanie_id):
     """Aktualizacja danych pocztówki"""
+    if not is_logged_in():
+        return jsonify({'error': 'You need to be logged in to edit cards'}), 403
     data = request.json
     conn = get_db()
     cursor = conn.cursor()
@@ -298,4 +400,6 @@ def view_card(card_id):
 if __name__ == '__main__':
     if not os.path.exists(IMAGE_FOLDER):
         os.makedirs(IMAGE_FOLDER)
-    app.run(debug=False)
+    app.logger.info("Pocztowki aplication starting")
+    # app.run(host="0.0.0.0", port=env.get("PORT", 3000), debug=True)
+    serve(app, host="0.0.0.0", port=5000)

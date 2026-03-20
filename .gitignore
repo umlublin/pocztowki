@@ -2,3 +2,7 @@
 /.idea/
 /images/
 /instance/pocztowki.db
+.env
+*.pyc
+__pycache__/
+pocztowka_app.log
