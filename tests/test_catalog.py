@@ -101,6 +101,46 @@ class CatalogTest(unittest.TestCase):
         self.assertNotIn('test rejected update', response.get_json()['error'])
         self.assertEqual(self.client.get('/api/card/1').get_json()['wydanie_numer'], 'D1')
 
+    def test_dictionary_create_reuses_existing_name(self):
+        path = '/api/dictionaries/miasta'
+        self.assertEqual(self.client.post(path, json={'name': 'Łódź'}).status_code, 403)
+        self.login('demo-admin')
+        self.assertEqual(self.client.post(path, json={'name': '  '}).status_code, 400)
+        result = self.client.post(path, json={'name': ' Łódź '})
+        self.assertEqual(result.status_code, 201)
+        entry = result.get_json()
+        duplicate = self.client.post(path, json={'name': 'ŁÓDŹ'})
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertEqual(duplicate.get_json(), entry)
+        self.assertIn(entry, self.client.get('/api/filters').get_json()['miasta'])
+        self.assertEqual(self.client.put('/api/card/1', json={
+            **self.edit, 'miasto_id': entry['miasto_id'],
+        }).status_code, 200)
+        self.assertEqual(self.client.get('/api/card/2').get_json()['miasto_nazwa'], 'Łódź')
+
+    def test_extended_fields_and_exact_filters(self):
+        self.login('demo-admin')
+        extra = {
+            'wydanie_naklad': '1000', 'wydanie_cenzura': 'Zatwierdzona', 'cenzura_id': '1',
+            'wzor_numer': 'A2',
+        }
+        self.assertEqual(self.client.put('/api/card/1', json={
+            **self.edit, **extra, 'cenzura_id': '99',
+        }).status_code, 400)
+        self.assertEqual(self.client.put('/api/card/1', json={
+            **self.edit, **extra, 'wydanie_tag': 'panoramiczny, Kolor  , ramka',
+        }).status_code, 200)
+        self.assertEqual(self.client.get('/api/search?tag=panorama&cenzura_id=1').get_json(), [])
+        result = self.client.get('/api/search?tag=KOLOR&rok=1970&cenzura_id=1').get_json()
+        self.assertEqual([row['wydanie_id'] for row in result], [1])
+        self.assertEqual(result[0]['wydanie_naklad'], 1000)
+        self.assertEqual(self.client.get('/api/card/2').get_json()['wzor_numer'], 'A2')
+        # Aktualizacja starym formatem żądania zachowuje pola dodane później.
+        self.assertEqual(self.client.put('/api/card/1', json=self.edit).status_code, 200)
+        saved = self.client.get('/api/card/1').get_json()
+        self.assertEqual((saved['wydanie_naklad'], saved['cenzura_numer'], saved['wzor_numer']),
+                         (1000, 'D1', 'A2'))
+
     def test_thumbnail_cache_concurrency_refresh_and_missing_image(self):
         def read_thumbnail():
             with server.app.test_client() as client, client.get('/images/1_mini.jpg') as response:

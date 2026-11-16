@@ -33,3 +33,11 @@ Miniatury w `images/thumbnails/` są odtwarzalne. Aplikacja używa osobnej wersj
 ```
 
 Testy tworzą osobny katalog tymczasowy i obejmują stronicowanie, filtry, sąsiadów wydania, uprawnienia, transakcję edycji oraz tworzenie i odświeżanie miniatur. Sesje są ustawiane przez klienta testowego Flask.
+
+## Zakres katalogowania
+
+Administrator może edytować istniejące wydanie i jego wzór, w tym nakład, tekstowe oznaczenie cenzury, numer cenzury ze słownika i numer wzoru. Zmiana numeru wzoru obejmuje wszystkie jego wydania. Przyciski „Dodaj miasto”, „Dodaj autora” i „Dodaj wydawcę” zapisują wpis słownikowy od razu i wybierają go w formularzu. Przypisanie do wzoru następuje po zapisaniu pocztówki. Nazwy różniące się tylko wielkością liter zwracają istniejący wpis. Słowniki muszą mieć identyfikatory generowane przy zapisie, jak w schemacie demonstracyjnym.
+
+Lista pozwala filtrować po roku, numerze cenzury i pełnej nazwie tagu. Wielkość liter w tagu nie ma znaczenia.
+
+Tworzenie i usuwanie wydań lub wzorów, import i wymiana skanów są poza bieżącym zakresem. Do zaprojektowania tych operacji potrzebny jest schemat używanej bazy oraz ustalenie, kiedy wzór lub skan mogą być współdzielone i usuwane. Dane demonstracyjne dostarczają przykładowy schemat do lokalnego uruchomienia i testów.

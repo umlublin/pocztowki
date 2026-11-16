@@ -20,6 +20,10 @@ Lista wynika z przeglądu kodu w rewizji [`40d50b1`](https://github.com/umlublin
 
 ## P2 — Brakujące funkcje
 
-- [ ] Dokończyć dodawanie miasta, autora i wydawcy z poziomu formularza albo usunąć opcję „Dodaj nowy” do czasu wdrożenia.
-- [ ] Ustalić zakres dalszego katalogowania. Kod nie zawiera tworzenia ani usuwania wydań i wzorów, importu oraz dodawania lub wymiany skanów z interfejsu.
-- [ ] Ustalić zakres filtrów i edycji. API przyjmuje rok, lecz lista nie ma pola roku. Katalog nie filtruje po tagach ani cenzurze. Formularz nie edytuje m.in. nakładu, cenzury i numeru wzoru.
+- [x] Administrator może dodać miasto, autora lub wydawcę z formularza edycji.
+- [x] Ustalono zakres katalogowania. Obecna aplikacja edytuje istniejące wydania i wzory oraz uzupełnia słowniki. Zasady dalszej rozbudowy opisuje [README.md](README.md#zakres-katalogowania).
+- [x] Lista filtruje po roku, tagu i numerze cenzury. Formularz edytuje nakład, oznaczenie i numer cenzury oraz numer wzoru.
+
+## Dalszy rozwój katalogu
+
+- [ ] Pozyskać schemat bazy produkcyjnej i ustalić zasady współdzielenia wzorów i skanów przed wdrożeniem tworzenia i usuwania rekordów, importu oraz dodawania lub wymiany skanów.

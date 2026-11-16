@@ -85,10 +85,11 @@
             <!-- Kontener na formularz (Edit Mode) -->
             <div id="editMode" style="display:none;">
                 <form id="editForm">
-                    <p>Zmiana miasta, opisu, autora lub wydawcy dotyczy wszystkich wydań tego wzoru.</p>
+                    <p>Zmiana numeru wzoru, miasta, opisu, autora lub wydawcy dotyczy wszystkich wydań tego wzoru.</p>
                     <div class="data-row">
                         <label class="data-label">Miasto:</label>
                         <select id="editCity" class="form-control"></select>
+                        <button type="button" data-dictionary="miasta" data-select="editCity">Dodaj miasto</button>
                     </div>
                     
                     <div class="data-row">
@@ -104,11 +105,13 @@
                     <div class="data-row">
                         <label class="data-label">Autor:</label>
                         <select id="editAutor" class="form-control"></select>
+                        <button type="button" data-dictionary="autorzy" data-select="editAutor">Dodaj autora</button>
                     </div>
                     
                     <div class="data-row">
                         <label class="data-label">Wydawca:</label>
                         <select id="editWydawca" class="form-control"></select>
+                        <button type="button" data-dictionary="wydawcy" data-select="editWydawca">Dodaj wydawcę</button>
                     </div>
 
                     <div class="data-row">
@@ -116,6 +119,22 @@
                         <input type="number" id="editRok" class="form-control">
                     </div>
                     
+                    <div class="data-row">
+                        <label class="data-label" for="editWzorNumer">Numer wzoru:</label>
+                        <input type="text" id="editWzorNumer" class="form-control">
+                    </div>
+                    <div class="data-row">
+                        <label class="data-label" for="editNaklad">Nakład:</label>
+                        <input type="text" inputmode="numeric" id="editNaklad" class="form-control">
+                    </div>
+                    <div class="data-row">
+                        <label class="data-label" for="editCenzuraOpis">Oznaczenie cenzury:</label>
+                        <input type="text" id="editCenzuraOpis" class="form-control">
+                    </div>
+                    <div class="data-row">
+                        <label class="data-label" for="editCenzura">Numer cenzury ze słownika:</label>
+                        <select id="editCenzura" class="form-control"></select>
+                    </div>
                     <div class="data-row">
                         <label class="data-label">Tagi:</label>
                         <div id="editTags" class="checkbox-group"></div>
@@ -338,42 +357,81 @@
         }
     }
 
+    const additionalEditFields = {
+        wzor_numer: 'editWzorNumer',
+        wydanie_naklad: 'editNaklad',
+        wydanie_cenzura: 'editCenzuraOpis',
+        cenzura_id: 'editCenzura',
+    };
+
+    function fillEditSelect(id, items, valueKey, nameKey, selectedValue) {
+        const select = document.getElementById(id);
+        select.replaceChildren(new Option('-- Wybierz --', ''));
+        for (const item of items) {
+            select.add(new Option(item[nameKey], item[valueKey]));
+        }
+        select.value = selectedValue ?? '';
+        if (select.selectedIndex < 0) {
+            select.add(new Option(`Brak wpisu w słowniku (${selectedValue})`, selectedValue));
+            select.value = selectedValue;
+        }
+    }
+
+    const dictionaryFields = {
+        miasta: ['miasto_id', 'miasto_nazwa'],
+        autorzy: ['autor_id', 'autor_nazwa'],
+        wydawcy: ['wydawca_id', 'wydawca_nazwa'],
+    };
+
+    async function addDictionaryEntry(button) {
+        if (!isEditMode || !canEdit || !filtersData) return;
+        const name = window.prompt('Podaj nazwę wpisu. Wpis zapisze się w słowniku od razu.')?.trim();
+        if (!name) return;
+        const {dictionary, select} = button.dataset;
+        const [valueKey, nameKey] = dictionaryFields[dictionary];
+        const card = currentCardData;
+        button.disabled = true;
+        try {
+            const response = await fetch(`/api/dictionaries/${dictionary}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name}),
+            });
+            const entry = await response.json();
+            if (!response.ok) throw new Error(entry.error || 'Błąd zapisu wpisu');
+            const items = filtersData[dictionary];
+            if (!items.some(item => item[valueKey] === entry[valueKey])) {
+                items.push(entry);
+                items.sort((a, b) => a[nameKey].localeCompare(b[nameKey], 'pl'));
+            }
+            if (isEditMode && currentCardData === card) {
+                fillEditSelect(select, items, valueKey, nameKey, entry[valueKey]);
+            }
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    for (const button of document.querySelectorAll('[data-dictionary]')) {
+        button.addEventListener('click', () => addDictionaryEntry(button));
+    }
+
     function prepareEditForm() {
         const p = currentCardData;
         
-        // Helper do wypełniania selecta
-        const fillSelect = (selectId, items, valueKey, textKey, selectedValue, addNew = true) => {
-            const select = document.getElementById(selectId);
-            select.innerHTML = '';
-            
-            // Opcja pusta
-            const emptyOpt = document.createElement('option');
-            emptyOpt.value = ""; emptyOpt.textContent = "-- Wybierz --";
-            select.appendChild(emptyOpt);
+        fillEditSelect('editCity', filtersData.miasta, 'miasto_id', 'miasto_nazwa', p.miasto_id);
+        fillEditSelect('editAutor', filtersData.autorzy, 'autor_id', 'autor_nazwa', p.autor_id);
+        fillEditSelect('editWydawca', filtersData.wydawcy, 'wydawca_id', 'wydawca_nazwa', p.wydawca_id);
+        fillEditSelect('editCenzura', filtersData.cenzura, 'cenzura_id', 'cenzura_numer', p.cenzura_id);
 
-            items.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item[valueKey];
-                opt.textContent = item[textKey];
-                if (item[valueKey] == selectedValue) opt.selected = true;
-                select.appendChild(opt);
-            });
-            
-            if(addNew) {
-                const addOpt = document.createElement('option');
-                addOpt.value = "NEW"; addOpt.textContent = "[ + Dodaj nowy ]";
-                addOpt.style.fontWeight = "bold";
-                select.appendChild(addOpt);
-            }
-        };
-
-        fillSelect('editCity', filtersData.miasta, 'miasto_id', 'miasto_nazwa', p.miasto_id);
-        fillSelect('editAutor', filtersData.autorzy, 'autor_id', 'autor_nazwa', p.autor_id);
-        fillSelect('editWydawca', filtersData.wydawcy, 'wydawca_id', 'wydawca_nazwa', p.wydawca_id);
-
-        document.getElementById('editOpis').value = p.wzor_opis || "";
-        document.getElementById('editNumerWydania').value = p.wydanie_numer || "";
-        document.getElementById('editRok').value = p.wydanie_rok || "";
+        document.getElementById('editOpis').value = p.wzor_opis ?? '';
+        document.getElementById('editNumerWydania').value = p.wydanie_numer ?? '';
+        document.getElementById('editRok').value = p.wydanie_rok ?? '';
+        for (const [field, id] of Object.entries(additionalEditFields)) {
+            document.getElementById(id).value = p[field] ?? '';
+        }
 
         // Tagi (Checkboxy)
         const tagsContainer = document.getElementById('editTags');
@@ -410,9 +468,9 @@
             wydanie_tag: Array.from(document.querySelectorAll('#editTags input:checked')).map(cb => cb.value).join(',')
         };
 
-        if (data.miasto_id === "NEW" || data.autor_id === "NEW" || data.wydawca_id === "NEW") {
-            alert("Dodawanie nowych wpisów słownikowych nie jest zaimplementowane.");
-            return;
+        for (const [field, id] of Object.entries(additionalEditFields)) {
+            const value = document.getElementById(id).value;
+            if (value !== String(currentCardData[field] ?? '')) data[field] = value;
         }
 
         const requestAtSave = cardRequest;

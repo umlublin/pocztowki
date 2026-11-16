@@ -128,7 +128,11 @@
                 <option value="0">-- Dowolny fotograf --</option>
             </select>
             <input type="hidden" name="wzor_numer">
-            <input type="hidden" name="rok">
+            <input type="number" name="rok" min="0" step="1" placeholder="Rok wydania" aria-label="Rok wydania">
+            <input type="text" name="tag" placeholder="Tag" aria-label="Tag">
+            <select id="cenzura_id" name="cenzura_id" aria-label="Numer cenzury">
+                <option value="0">-- Dowolna cenzura --</option>
+            </select>
             <button type="submit">Szukaj</button>
             <button type="button" id="resetBtn" style="background:#777;">Reset</button>
             <select id="sort" name="sort"></select>
@@ -177,6 +181,7 @@
         populateSelect('wydawca_id', data.wydawcy, 'wydawca_id', 'wydawca_nazwa');
         populateSelect('miasto_id', data.miasta, 'miasto_id', 'miasto_nazwa');
         populateSelect('autor_id', data.autorzy, 'autor_id', 'autor_nazwa');
+        populateSelect('cenzura_id', data.cenzura, 'cenzura_id', 'cenzura_numer');
         populateSelect('sort', data.sort, 'field_id', 'field_name');
     }
 
@@ -290,7 +295,7 @@
     function restoreSearch() {
         const params = new URLSearchParams(location.search);
         form.reset();
-        for (const name of ['q', 'wydawca_id', 'autor_id', 'miasto_id', 'sort', 'wzor_numer', 'rok']) {
+        for (const name of ['q', 'wydawca_id', 'autor_id', 'miasto_id', 'sort', 'wzor_numer', 'rok', 'tag', 'cenzura_id']) {
             if (!params.has(name)) continue;
             const input = form.elements[name];
             const value = params.get(name);

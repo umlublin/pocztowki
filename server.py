@@ -33,6 +33,11 @@ SEARCH_SORT_FIELDS = {
     'wydawca_nazwa': ('Wydawca', 'pub.wydawca_nazwa'),
 }
 SQLITE_MAX_INTEGER = 2**63 - 1
+EDITABLE_DICTIONARIES = {
+    'miasta': ('miasto_id', 'miasto_nazwa'),
+    'autorzy': ('autor_id', 'autor_nazwa'),
+    'wydawcy': ('wydawca_id', 'wydawca_nazwa'),
+}
 
 file_handler = RotatingFileHandler(os.path.join(env.get("LOG_ROOT", "./"), "pocztowka_app.log"), maxBytes=1024000, backupCount=10)
 file_handler.setFormatter(logging.Formatter(
@@ -71,11 +76,16 @@ def get_user_data():
         return {}
     return {**userinfo, 'is_admin': userinfo.get('sub') in admins}
 
+def has_tag(tags, requested_tag):
+    return any(tag.strip().casefold() == requested_tag for tag in str(tags or '').split(','))
+
+
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
         db.row_factory = sqlite3.Row
+        db.create_function('has_tag', 2, has_tag)
     return db
 
 @app.before_request
@@ -216,6 +226,43 @@ def api_filters():
     })
 
 
+@app.route('/api/dictionaries/<kind>', methods=['POST'])
+def create_dictionary_entry(kind):
+    if not get_user_data().get('is_admin'):
+        return jsonify({'error': 'Edycja wymaga uprawnień administratora.'}), 403
+    fields = EDITABLE_DICTIONARIES.get(kind)
+    if fields is None:
+        abort(404)
+
+    data = request.get_json(silent=True)
+    name = data.get('name') if isinstance(data, dict) else None
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:
+        return jsonify({'error': 'Podaj nazwę o długości od 1 do 200 znaków.'}), 400
+    name = name.strip()
+    id_field, name_field = fields
+
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('BEGIN IMMEDIATE')
+            # Dopasowanie Unicode również dla polskich nazw.
+            normalized_name = name.casefold()
+            for row in conn.execute(f'SELECT {id_field}, {name_field} FROM {kind} ORDER BY {id_field}'):
+                if row[name_field] and row[name_field].strip().casefold() == normalized_name:
+                    return jsonify(dict_from_row(row)), 200
+            inserted = conn.execute(f'INSERT INTO {kind} ({name_field}) VALUES (?)', (name,))
+            entry = conn.execute(
+                f'SELECT {id_field}, {name_field} FROM {kind} WHERE {id_field} = ?',
+                (inserted.lastrowid,),
+            ).fetchone()
+            if entry is None:
+                raise sqlite3.IntegrityError('Dictionary key was not assigned')
+            return jsonify(dict_from_row(entry)), 201
+    except sqlite3.Error:
+        app.logger.exception('Nie udało się dodać wpisu do słownika %s', kind)
+        return jsonify({'error': 'Nie udało się zapisać wpisu słownikowego.'}), 500
+
+
 @app.route('/api/search')
 def api_search():
     """Zwraca listę pocztówek wg filtrów"""
@@ -225,8 +272,13 @@ def api_search():
     autor_filter = request.args.get('autor_id', type=int)
     wydawca_filter = request.args.get('wydawca_id', type=int)
     wzor_numer = request.args.get('wzor_numer', type=str)
+    cenzura_id = request.args.get('cenzura_id', type=int)
+    tag = request.args.get('tag', '').strip().casefold()
     sort_filter = request.args.get('sort', type=str, default='wydanie_rok')
     offset = request.args.get('offset', type=int, default=0)
+    if any(value is not None and not 0 <= value <= SQLITE_MAX_INTEGER
+           for value in (rok_filter, miasto_filter, autor_filter, wydawca_filter, cenzura_id)):
+        return jsonify({'error': 'Wartość filtra poza dozwolonym zakresem.'}), 400
     if not 0 <= offset <= SQLITE_MAX_INTEGER:
         return jsonify({'error': 'Przesunięcie wyników poza dozwolonym zakresem.'}), 400
 
@@ -266,7 +318,7 @@ def api_search():
         sql += " AND (wz.wzor_opis LIKE ? OR wz.wzor_numer LIKE ?)"
         params.extend([search_term, search_term])
 
-    if rok_filter:
+    if rok_filter is not None:
         sql += " AND wyd.wydanie_rok = ?"
         params.append(rok_filter)
 
@@ -282,6 +334,13 @@ def api_search():
     if wzor_numer:
         sql += " AND wz.wzor_numer = ?"
         params.append(wzor_numer)
+
+    if cenzura_id:
+        sql += " AND wyd.cenzura_id = ?"
+        params.append(cenzura_id)
+    if tag:
+        sql += " AND has_tag(wyd.wydanie_tag, ?)"
+        params.append(tag)
 
     _, sort_column = SEARCH_SORT_FIELDS.get(sort_filter, SEARCH_SORT_FIELDS['wydanie_rok'])
     sql += f" ORDER BY {sort_column}, wyd.wydanie_id LIMIT 10 OFFSET ?"
@@ -356,12 +415,23 @@ def api_card_update(wydanie_id):
     )
     if not isinstance(data, dict):
         return jsonify({'error': 'Oczekiwano obiektu JSON z danymi edycji.'}), 400
+    if 'cenzura_id' in data:
+        reference_fields += (('cenzura_id', 'cenzura'),)
 
     try:
         for field in text_fields:
             if not isinstance(data.get(field), str):
                 raise ValueError(f'Pole {field} jest wymagane i musi być tekstem.')
+        for field in ('wydanie_cenzura', 'wzor_numer'):
+            if field in data and not isinstance(data[field], str):
+                raise ValueError(f'Pole {field} musi być tekstem.')
         year = read_card_integer(data, 'wydanie_rok', 0, 0)
+        edition_values = {field: data[field] for field in ('wydanie_numer', 'wydanie_tag')}
+        edition_values['wydanie_rok'] = year
+        if 'wydanie_naklad' in data:
+            edition_values['wydanie_naklad'] = read_card_integer(data, 'wydanie_naklad', 0, None)
+        if 'wydanie_cenzura' in data:
+            edition_values['wydanie_cenzura'] = data['wydanie_cenzura']
         references = {
             field: read_card_integer(data, field, 1, None)
             for field, _ in reference_fields
@@ -388,16 +458,19 @@ def api_card_update(wydanie_id):
             ).fetchone() is None:
                 return jsonify({'error': f'Nie znaleziono wpisu dla pola {field}.'}), 400
 
-        conn.execute(
-            """UPDATE wydanie SET wydanie_numer = ?, wydanie_rok = ?, wydanie_tag = ?
-               WHERE wydanie_id = ?""",
-            (data['wydanie_numer'], year, data['wydanie_tag'], wydanie_id),
-        )
+        if 'cenzura_id' in references:
+            edition_values['cenzura_id'] = references.pop('cenzura_id')
+        edition_assignments = ', '.join(f'{column} = ?' for column in edition_values)
+        conn.execute(f'UPDATE wydanie SET {edition_assignments} WHERE wydanie_id = ?',
+                     (*edition_values.values(), wydanie_id))
+
+        pattern_values = {**references, 'wzor_opis': data['wzor_opis']}
+        if 'wzor_numer' in data:
+            pattern_values['wzor_numer'] = data['wzor_numer']
+        pattern_assignments = ', '.join(f'{column} = ?' for column in pattern_values)
         pattern_update = conn.execute(
-            """UPDATE wzory SET miasto_id = ?, wzor_opis = ?, autor_id = ?, wydawca_id = ?
-               WHERE wzor_id = ?""",
-            (references['miasto_id'], data['wzor_opis'], references['autor_id'],
-             references['wydawca_id'], row['wzor_id']),
+            f'UPDATE wzory SET {pattern_assignments} WHERE wzor_id = ?',
+            (*pattern_values.values(), row['wzor_id']),
         )
         if pattern_update.rowcount != 1:
             return jsonify({'error': 'Nie znaleziono spójnego wzoru dla wydania.'}), 409
