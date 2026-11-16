@@ -4,10 +4,10 @@ Lista wynika z przeglądu kodu w rewizji [`40d50b1`](https://github.com/umlublin
 
 ## P0 — Bezpieczeństwo i zapis danych
 
-- [ ] **Walidować sortowanie w `api_search()`.** Parametr `sort` trafia bezpośrednio do `ORDER BY`. Mapować wartości z API na stałe kolumny SQL, ustalić domyślne sortowanie i parametryzować lub walidować przesunięcie.
-- [ ] **Bezpiecznie renderować metadane i dane użytkownika.** Oba szablony wstawiają część danych do HTML. Budować elementy DOM i używać `textContent` dla treści, a dla odnośników z bazy walidować dozwolone schematy URL.
-- [ ] **Ustalić i egzekwować uprawnienia edycji.** Dziś zapisać może każdy zalogowany użytkownik. Ustalić dopuszczone role, egzekwować je w `PUT /api/card/<id>` i pokazywać edycję zgodnie z tym samym warunkiem. Formularz powinien też sygnalizować wpływ zmiany wzoru na inne wydania.
-- [ ] **Walidować żądania aktualizacji.** Niepoprawne wartości są zamieniane na `NULL` lub 0, a brakujące pola tekstowe na puste ciągi. Zdefiniować wymagane pola, obsługę pustych wartości i walidację identyfikatorów słowników. Zwracać czytelne błędy bez szczegółów wyjątków serwera.
+- [x] Sortowanie korzysta z listy dozwolonych kolumn i parametryzowanego przesunięcia.
+- [x] Szablony wstawiają dynamiczne treści przez DOM. Zewnętrzny odnośnik autora akceptuje HTTP i HTTPS.
+- [x] Edycja jest dostępna dla administratorów z `ADMIN_SID` i `ADMIN_SID_BACKUP`. Formularz informuje o wpływie zmiany wzoru na inne wydania.
+- [x] API sprawdza pola i identyfikatory słowników oraz zwraca ogólny komunikat przy błędzie zapisu.
 
 ## P1 — Błędy i nieukończone ścieżki
 

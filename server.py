@@ -4,6 +4,7 @@ from urllib.parse import quote_plus, urlencode
 from authlib.integrations.flask_client import OAuth
 import sqlite3
 import os
+import re
 from os import environ as env
 from flask import Flask, redirect, render_template, request, g, send_from_directory, abort, jsonify,session
 from PIL import Image
@@ -19,9 +20,16 @@ if ENV_FILE:
 MY_URL = env.get("MY_URL")
 DATA_ROOT = env.get("DATA_ROOT", "./")
 
-admins = []
-admins.append(env.get('ADMIN_SID'))
-admins.append(env.get('ADMIN_SID_BACKUP'))
+admins = {sid for sid in (env.get('ADMIN_SID'), env.get('ADMIN_SID_BACKUP')) if sid}
+
+SEARCH_SORT_FIELDS = {
+    'wydanie_rok': ('Rok wydania', 'wyd.wydanie_rok'),
+    'wzor_numer': ('Numer', 'wz.wzor_numer'),
+    'miasto_nazwa': ('Miasto', 'm.miasto_nazwa'),
+    'autor_nazwa': ('Autor', 'a.autor_nazwa'),
+    'wydawca_nazwa': ('Wydawca', 'pub.wydawca_nazwa'),
+}
+SQLITE_MAX_INTEGER = 2**63 - 1
 
 file_handler = RotatingFileHandler(env.get("LOG_ROOT", './') + 'pocztowka_app.log', maxBytes=1024000, backupCount=10)
 file_handler.setFormatter(logging.Formatter(
@@ -53,20 +61,11 @@ oauth.register(
     server_metadata_url=f'https://{env.get("AUTH0_DOMAIN")}/.well-known/openid-configuration'
 )
 
-def is_logged_in():
-    return session.get('user')
-
-
 def get_user_data():
-    userdata = {}
-    if session.get('user'):
-        userdata = session.get('user')['userinfo']
-        if userdata.get('sub') in admins:
-            userdata['is_admin'] = True
-        else:
-            userdata['is_admin'] = False
-
-    return userdata
+    userinfo = (session.get('user') or {}).get('userinfo') or {}
+    if not userinfo:
+        return {}
+    return {**userinfo, 'is_admin': userinfo.get('sub') in admins}
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -204,11 +203,8 @@ def api_filters():
         'wydawcy': publishers,
         'cenzura': cenzura,
         'tagi': ['panorama', 'kolor', 'ramka', 'lotnicze'],
-        'sort': [{'field_id': 'wydanie_rok', 'field_name': "Rok wydania"},
-                 {'field_id': 'wzor_numer', 'field_name': 'Numer'},
-                 {'field_id': 'miasto_nazwa', 'field_name': 'Miasto'},
-                 {'field_id': 'autor_nazwa', 'field_name': 'Autor'},
-                 {'field_id': 'wydawca_nazwa', 'field_name': 'Wydawca'}]
+        'sort': [{'field_id': key, 'field_name': label}
+                 for key, (label, _) in SEARCH_SORT_FIELDS.items()]
     })
 
 
@@ -223,6 +219,8 @@ def api_search():
     wzor_numer = request.args.get('wzor_numer', type=str)
     sort_filter = request.args.get('sort', type=str, default='wydanie_rok')
     offset = request.args.get('offset', type=int, default=0)
+    if not 0 <= offset <= SQLITE_MAX_INTEGER:
+        return jsonify({'error': 'Przesunięcie wyników poza dozwolonym zakresem.'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
@@ -277,9 +275,9 @@ def api_search():
         sql += " AND wzor_numer = ?"
         params.append(wzor_numer)
 
-    #TODO: dodac zabezpieczenie przed SQL injectionm
-    if sort_filter:
-        sql += f" ORDER BY {sort_filter} LIMIT 10 OFFSET {offset}"
+    _, sort_column = SEARCH_SORT_FIELDS.get(sort_filter, SEARCH_SORT_FIELDS['wydanie_rok'])
+    sql += f" ORDER BY {sort_column}, wyd.wydanie_id LIMIT 10 OFFSET ?"
+    params.append(offset)
 
     cursor.execute(sql, params)
     rows = cursor.fetchall()
@@ -322,65 +320,85 @@ def api_card_detail(wydanie_id):
     return jsonify(dict_from_row(row))
 
 
+def read_card_integer(data, field, minimum, empty_value):
+    value = data[field]
+    if value is None or value == '':
+        return empty_value
+    if isinstance(value, str) and re.fullmatch(r'[0-9]{1,19}', value):
+        value = int(value)
+    if type(value) is not int or not minimum <= value <= SQLITE_MAX_INTEGER:
+        raise ValueError(f'Nieprawidłowa wartość pola {field}.')
+    return value
+
+
 @app.route('/api/card/<int:wydanie_id>', methods=['PUT'])
 def api_card_update(wydanie_id):
-    """Aktualizacja danych pocztówki"""
-    if not is_logged_in():
-        return jsonify({'error': 'You need to be logged in to edit cards'}), 403
-    data = request.json
-    conn = get_db()
-    cursor = conn.cursor()
+    """Aktualizacja danych pocztówki przez administratora."""
+    if not get_user_data().get('is_admin'):
+        return jsonify({'error': 'Edycja wymaga uprawnień administratora.'}), 403
 
-    # Pobieramy wzor_id dla danego wydania
-    cursor.execute("SELECT wzor_id FROM wydanie WHERE wydanie_id = ?", (wydanie_id,))
-    row = cursor.fetchone()
-    if not row:
-        return jsonify({'error': 'Nie znaleziono karty'}), 404
-    wzor_id = row['wzor_id']
-
-    # Helper do czyszczenia danych (puste stringi na None/0)
-    def clean_int(val, default=None):
-        if val == "" or val is None or val == "NEW": return default
-        try:
-            return int(val)
-        except:
-            return default
-
-    miasto_id = clean_int(data.get('miasto_id'))
-    autor_id = clean_int(data.get('autor_id'))
-    wydawca_id = clean_int(data.get('wydawca_id'))
-    wydanie_rok = clean_int(data.get('wydanie_rok'), 0)
-
-    wydanie_numer = data.get('wydanie_numer', '')
-    wzor_opis = data.get('wzor_opis', '')
-    wydanie_tag = data.get('wydanie_tag', '')
+    data = request.get_json(silent=True)
+    text_fields = ('wydanie_numer', 'wzor_opis', 'wydanie_tag')
+    reference_fields = (
+        ('miasto_id', 'miasta'),
+        ('autor_id', 'autorzy'),
+        ('wydawca_id', 'wydawcy'),
+    )
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Oczekiwano obiektu JSON z danymi edycji.'}), 400
 
     try:
-        # Update Wydanie
-        cursor.execute("""
-                       UPDATE wydanie
-                       SET wydanie_numer = ?,
-                           wydanie_rok   = ?,
-                           wydanie_tag   = ?
-                       WHERE wydanie_id = ?
-                       """, (wydanie_numer, wydanie_rok, wydanie_tag, wydanie_id))
+        for field in text_fields:
+            if not isinstance(data.get(field), str):
+                raise ValueError(f'Pole {field} jest wymagane i musi być tekstem.')
+        year = read_card_integer(data, 'wydanie_rok', 0, 0)
+        references = {
+            field: read_card_integer(data, field, 1, None)
+            for field, _ in reference_fields
+        }
+    except KeyError as error:
+        return jsonify({'error': f'Brak wymaganego pola {error.args[0]}.'}), 400
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
 
-        # Update Wzory (uwaga: zmienia to dane dla wszystkich wydań tego wzoru!)
-        cursor.execute("""
-                       UPDATE wzory
-                       SET miasto_id  = ?,
-                           wzor_opis  = ?,
-                           autor_id   = ?,
-                           wydawca_id = ?
-                       WHERE wzor_id = ?
-                       """, (miasto_id, wzor_opis, autor_id, wydawca_id, wzor_id))
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            'SELECT wzor_id FROM wydanie WHERE wydanie_id = ?', (wydanie_id,)
+        ).fetchone()
+        if row is None:
+            return jsonify({'error': 'Nie znaleziono karty.'}), 404
 
+        for field, table in reference_fields:
+            value = references[field]
+            if value is not None and conn.execute(
+                f'SELECT 1 FROM {table} WHERE {field} = ?', (value,)
+            ).fetchone() is None:
+                return jsonify({'error': f'Nie znaleziono wpisu dla pola {field}.'}), 400
+
+        conn.execute(
+            """UPDATE wydanie SET wydanie_numer = ?, wydanie_rok = ?, wydanie_tag = ?
+               WHERE wydanie_id = ?""",
+            (data['wydanie_numer'], year, data['wydanie_tag'], wydanie_id),
+        )
+        pattern_update = conn.execute(
+            """UPDATE wzory SET miasto_id = ?, wzor_opis = ?, autor_id = ?, wydawca_id = ?
+               WHERE wzor_id = ?""",
+            (references['miasto_id'], data['wzor_opis'], references['autor_id'],
+             references['wydawca_id'], row['wzor_id']),
+        )
+        if pattern_update.rowcount != 1:
+            return jsonify({'error': 'Nie znaleziono spójnego wzoru dla wydania.'}), 409
         conn.commit()
         return jsonify({'success': True})
-    except Exception as e:
-        conn.rollback()
-        print(f"Update error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except sqlite3.Error:
+        app.logger.exception('Nie udało się zapisać wydania %s', wydanie_id)
+        return jsonify({'error': 'Nie udało się zapisać pocztówki.'}), 500
+    finally:
+        if conn is not None and conn.in_transaction:
+            conn.rollback()
 
 # --- Widoki HTML (Statyczne kontenery) ---
 

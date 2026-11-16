@@ -64,7 +64,7 @@
             <div style="margin-bottom:15px; font-size: 0.9em; display:flex; align-items:center;">
                  <button id="btnPrev" style="margin-right:10px;">&larr; Poprzedni</button>
                  <button id="btnNext" style="margin-right:20px;">Następny &rarr;</button>
-                 <button id="btnEdit" class="btn-edit-toggle">Edytuj (E)</button>
+                 <button id="btnEdit" class="btn-edit-toggle" hidden>Edytuj (E)</button>
                  <span style="margin-left:10px; color:#999; font-size:0.8em;">(Strzałki / A / R)</span>
             </div>
 
@@ -87,6 +87,7 @@
             <!-- Kontener na formularz (Edit Mode) -->
             <div id="editMode" style="display:none;">
                 <form id="editForm">
+                    <p>Zmiana miasta, opisu, autora lub wydawcy dotyczy wszystkich wydań tego wzoru.</p>
                     <div class="data-row">
                         <label class="data-label">Miasto:</label>
                         <select id="editCity" class="form-control"></select>
@@ -150,20 +151,48 @@
     let userdata = {};
 
     function updateUserData() {
-        container = document.getElementById("user-info-frame")
-        container.replaceChildren()
-        if (!userdata.nickname) {
-            container.insertAdjacentHTML('beforeend', '<a href="/login" title="Zaloguj"><img src="/icons/icons8-login-32.png"></a>');
-        } else {
-            container.insertAdjacentHTML('beforeend', `<a href="/logout" title="Wyloguj"><img src="/icons/icons8-logout-32.png"></a> ${userdata.nickname} `);
-        }
+        const container = document.getElementById('user-info-frame');
+        const isLoggedIn = Boolean(userdata.sub || userdata.nickname);
+        const link = document.createElement('a');
+        link.href = isLoggedIn ? '/logout' : '/login';
+        link.title = isLoggedIn ? 'Wyloguj' : 'Zaloguj';
+        const icon = document.createElement('img');
+        icon.src = isLoggedIn ? '/icons/icons8-logout-32.png' : '/icons/icons8-login-32.png';
+        icon.alt = link.title;
+        link.append(icon);
+        if (isLoggedIn && userdata.nickname) link.append(' ', userdata.nickname);
+        container.replaceChildren(link);
+        document.getElementById('btnEdit').hidden = userdata.is_admin !== true;
     }
 
-    async function loadUSerData() {
-        let res = await fetch(`/api/userdata.json`, {headers: {'Accept': 'application/json'}});
-        if (!res.ok) throw new Error('Failed to load');
-        userdata = await res.json();
-        updateUserData(); 
+    async function loadUserData() {
+        try {
+            const response = await fetch('/api/userdata.json', {headers: {'Accept': 'application/json'}});
+            if (!response.ok) throw new Error('Błąd pobierania danych sesji');
+            userdata = await response.json();
+        } catch (error) {
+            console.error(error);
+        }
+        updateUserData();
+    }
+
+    function appendScan(container, id, label) {
+        const imageId = String(id);
+        if (!id || !/^[0-9]+$/.test(imageId)) return null;
+
+        const src = `/images/${imageId}.jpg`;
+        const box = document.createElement('div');
+        box.className = 'image-box';
+        const caption = document.createElement('span');
+        caption.className = 'label';
+        caption.textContent = label;
+        const image = document.createElement('img');
+        image.src = src;
+        image.alt = label;
+        image.addEventListener('click', () => openModal(src));
+        box.append(caption, image);
+        container.append(box);
+        return imageId;
     }
 
     // --- Pobieranie Danych ---
@@ -205,14 +234,8 @@
             
             // Obrazki
             const imgContainer = document.getElementById('imagesContainer');
-            if (p.awers_id) {
-                awersId = p.awers_id;
-                imgContainer.innerHTML += `<div class="image-box"><span class="label">Awers</span><img src="/images/${p.awers_id}.jpg" onclick="openModal('/images/${p.awers_id}.jpg')"></div>`;
-            }
-            if (p.rewers_id) {
-                rewersId = p.rewers_id;
-                imgContainer.innerHTML += `<div class="image-box"><span class="label">Rewers</span><img src="/images/${p.rewers_id}.jpg" onclick="openModal('/images/${p.rewers_id}.jpg')"></div>`;
-            }
+            awersId = appendScan(imgContainer, p.awers_id, 'Awers');
+            rewersId = appendScan(imgContainer, p.rewers_id, 'Rewers');
 
             renderViewMode(p);
             updateNavButtons();
@@ -233,23 +256,53 @@
         document.getElementById('cityName').textContent = p.miasto_nazwa || "Nieznane miasto";
         document.getElementById('opisWzoru').textContent = p.wzor_opis || "Brak opisu";
         document.getElementById('wzorFull').textContent = p.wydanie_numer;
-        document.getElementById('numerWzoruContainer').innerHTML = `<a href="/?wydawca_id=${p.wydawca_id}&wzor_numer=${p.wzor_numer}">${p.wydawca_id}-${p.wzor_numer}</a>`;
-        
-        let autorHtml = p.autor_nazwa ? `<a href="/?autor_id=${p.autor_id}">${p.autor_nazwa}</a>` : "-";
-        if (p.autor_url) {
-            autorHtml += ` - <a target="_blank" href="${p.autor_url}">Wikipedia</a>`;
+        const numberLink = document.createElement('a');
+        const numberFilters = new URLSearchParams({wydawca_id: p.wydawca_id, wzor_numer: p.wzor_numer});
+        numberLink.href = `/?${numberFilters}`;
+        numberLink.textContent = `${p.wydawca_id}-${p.wzor_numer}`;
+        document.getElementById('numerWzoruContainer').replaceChildren(numberLink);
+
+        const authorContainer = document.getElementById('autorContainer');
+        authorContainer.textContent = '-';
+        if (p.autor_nazwa) {
+            const authorLink = document.createElement('a');
+            authorLink.href = `/?${new URLSearchParams({autor_id: p.autor_id})}`;
+            authorLink.textContent = p.autor_nazwa;
+            authorContainer.replaceChildren(authorLink);
         }
-        document.getElementById('autorContainer').innerHTML = autorHtml;
+
+        if (p.autor_url) {
+            let url;
+            try {
+                url = new URL(p.autor_url);
+            } catch {
+                // Pomijamy niepoprawny adres.
+            }
+            if (url && ['https:', 'http:'].includes(url.protocol)) {
+                const wikiLink = document.createElement('a');
+                wikiLink.href = url.href;
+                wikiLink.target = '_blank';
+                wikiLink.rel = 'noopener noreferrer';
+                wikiLink.textContent = 'Wikipedia';
+                authorContainer.append(' - ', wikiLink);
+            }
+        }
 
         document.getElementById('yearVal').textContent = p.wydanie_rok == 0 ? 'Nieznany' : p.wydanie_rok;
         document.getElementById('nakladVal').textContent = p.wydanie_naklad || "-";
         document.getElementById('cenzuraVal').textContent = (p.wydanie_cenzura || "-") + " (" + (p.cenzura_numer || "-") + ")";
         
+        const tagsContainer = document.getElementById('tagsContainer');
+        tagsContainer.replaceChildren();
         if (p.wydanie_tag) {
-            const tags = p.wydanie_tag.split(',');
-            document.getElementById('tagsContainer').innerHTML = tags.map(t => `<span class="badge">${t.trim()}</span>`).join(' ');
+            for (const tag of p.wydanie_tag.split(',')) {
+                const badge = document.createElement('span');
+                badge.className = 'badge';
+                badge.textContent = tag.trim();
+                tagsContainer.append(badge, ' ');
+            }
         } else {
-            document.getElementById('tagsContainer').innerHTML = "-";
+            tagsContainer.textContent = '-';
         }
 
         document.getElementById('zamowienieVal').textContent = p.wydanie_zamowienie || "-";
@@ -265,6 +318,7 @@
     // --- Edit Mode Logic ---
 
     async function toggleEditMode(enable) {
+        if (enable && (userdata.is_admin !== true || !currentCardData)) return;
         isEditMode = enable;
         const viewDiv = document.getElementById('viewMode');
         const editDiv = document.getElementById('editMode');
@@ -346,6 +400,7 @@
     }
 
     async function saveChanges() {
+        if (!isEditMode || userdata.is_admin !== true) return;
         const data = {
             miasto_id: document.getElementById('editCity').value,
             wzor_opis: document.getElementById('editOpis').value,
@@ -434,7 +489,7 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        loadUSerData()
+        loadUserData();
         loadCardDetails(currentCardId);
     });
 
