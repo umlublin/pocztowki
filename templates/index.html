@@ -112,14 +112,12 @@
     </style>
 </head>
 <body>
-<div class="user-info" id="user-info">
-    <div class="user-info-frame" id="user-info-frame"></div>
-</div>
+{% include 'session_header.html' %}
 <div class="container">
     <header>
         <h1 style="text-align:center; color:#2c3e50;">Repozytorium Pocztówek</h1>
         <form id="searchForm" action="/" method="get" class="search-box">
-            <input type="text" name="q" placeholder="Szukaj..." value="{{ search_query }}">
+            <input type="text" name="q" placeholder="Szukaj...">
             <select id="wydawca_id" name="wydawca_id">
                 <option value="0">-- Dowolny wydawca --</option>
             </select>
@@ -129,6 +127,8 @@
             <select id="autor_id" name="autor_id">
                 <option value="0">-- Dowolny fotograf --</option>
             </select>
+            <input type="hidden" name="wzor_numer">
+            <input type="hidden" name="rok">
             <button type="submit">Szukaj</button>
             <button type="button" id="resetBtn" style="background:#777;">Reset</button>
             <select id="sort" name="sort"></select>
@@ -154,183 +154,192 @@
                 Ładowanie kolejnych elementów...
             </div>
         </div>
+        <p id="searchStatus" role="status"></p>
+        <button type="button" id="moreBtn" hidden>Wczytaj więcej</button>
     </div>
 
     <script>
-        let currentOffset = 0;
-        let isLoading = false;
-        let hasMore = true; // Czy są jeszcze dane do pobrania
+    const form = document.getElementById('searchForm');
+    const tbody = document.getElementById('resultsBody');
+    const searchStatus = document.getElementById('searchStatus');
+    const moreButton = document.getElementById('moreBtn');
+    const loading = document.getElementById('loadingIndicator');
+    let activeFilters = new URLSearchParams();
+    let currentOffset = 0;
+    let pendingRequest = null;
+    let hasMore = false;
+    let retryRequired = false;
 
-        // 1. Pobieranie danych do Selectów
-        async function loadFilters() {
-            try {
-            const response = await fetch('/api/filters');
-            const data = await response.json();
-
-            populateSelect('wydawca_id', data.wydawcy, 'wydawca_id', 'wydawca_nazwa');
-            populateSelect('miasto_id', data.miasta, 'miasto_id', 'miasto_nazwa');
-            populateSelect('autor_id', data.autorzy, 'autor_id', 'autor_nazwa');
-            populateSelect('sort', data.sort, 'field_id', 'field_name');
-        } catch (e) {
-            console.error("Błąd ładowania filtrów", e);
-        }
+    async function loadFilters() {
+        const response = await fetch('/api/filters');
+        if (!response.ok) throw new Error('Błąd pobierania filtrów');
+        const data = await response.json();
+        populateSelect('wydawca_id', data.wydawcy, 'wydawca_id', 'wydawca_nazwa');
+        populateSelect('miasto_id', data.miasta, 'miasto_id', 'miasto_nazwa');
+        populateSelect('autor_id', data.autorzy, 'autor_id', 'autor_nazwa');
+        populateSelect('sort', data.sort, 'field_id', 'field_name');
     }
 
-    function populateSelect(elementId, items, idKey = 'id', labelKey = 'name') {
-        const select = document.getElementById(elementId);
-        items.forEach(item => {
+    function populateSelect(id, items, valueKey, textKey) {
+        const select = document.getElementById(id);
+        for (const item of items) {
             const option = document.createElement('option');
-            option.value = item[idKey];
-            option.textContent = item[labelKey];
-            select.appendChild(option);
-        });
+            option.value = item[valueKey];
+            option.textContent = item[textKey];
+            select.append(option);
+        }
     }
 
- // 2. Pobieranie listy pocztówek
-        async function loadCards(reset = false) {
-            if (isLoading || (!hasMore && !reset)) return;
+    function renderCard(p) {
+        const tr = document.createElement('tr');
+        tr.className = 'clickable-row';
+        tr.onclick = () => window.location = `/view/${encodeURIComponent(p.wydanie_id)}`;
 
-            isLoading = true;
-            const tbody = document.getElementById('resultsBody');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-
-            loadingIndicator.style.display = 'block';
-
-            if (reset) {
-                currentOffset = 0;
-                hasMore = true;
-                tbody.innerHTML = '';
-            }
-
-            // Zbieramy dane z formularza
-            const formData = new FormData(document.getElementById('searchForm'));
-            const params = new URLSearchParams(formData);
-
-            // Dodajemy offset
-            params.set('offset', currentOffset);
-
-            // Obsługa parametrów z URL (tylko przy pierwszym ładowaniu)
-            if (reset) {
-                 const urlParams = new URLSearchParams(window.location.search);
-                 for (const key of ['q','wydawca_id','autor_id','miasto_id','sort']) {
-                    const value = urlParams.get(key);
-                    if (value && !params.get(key)) {
-                        params.set(key, value);
-                        // Wypełnij też formularz
-                        const field = document.getElementsByName(key)[0];
-                        if(field) field.value = value;
-                    }
-                }
-            }
-
-            try {
-                const response = await fetch(`/api/search?${params.toString()}`);
-                const cards = await response.json();
-
-                if (cards.length === 0) {
-                    hasMore = false;
-                    if (reset) {
-                         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Brak wyników</td></tr>';
-                    }
-                } else {
-                    currentOffset += cards.length; // Przesuwamy offset o tyle ile pobraliśmy
-
-                    cards.forEach(p => {
-                        const tr = document.createElement('tr');
-                        tr.className = 'clickable-row';
-                        // Otwieranie w tej samej karcie
-                        tr.onclick = () => window.location = `/view/${encodeURIComponent(p.wydanie_id)}`;
-                        // Jeśli chcesz otwierać w nowej karcie:
-                        // tr.onclick = (e) => { if(!e.ctrlKey) window.location = `/view/${p.wydanie_id}`; };
-
-                        tr.innerHTML = `
-                            <td></td>
-                            <td></td>
-                            <td>
-                                <div style="font-weight:bold; color:#2c3e50;"></div>
-                                <div style="font-size:0.9em; color:#555;"></div>
-                                <div style="font-size:0.8em;"></div>
-                            </td>
-                            <td>
-                                <strong></strong><br>
-                                <div style="font-size:0.85em; color:#7f8c8d;"></div>
-                                <div style="font-size:0.85em; color:#7f8c8d;"></div>
-                            </td>
-                        `;
-                        const [number, preview, details, edition] = tr.cells;
-                        number.textContent = p.wydawca_wzor_numer;
-                        const imageId = String(p.awers_id);
-                        if (p.awers_id && /^[0-9]+$/.test(imageId)) {
-                            const image = document.createElement('img');
-                            image.className = 'thumb-img';
-                            image.src = `/images/${imageId}_mini.jpg`;
-                            image.alt = 'Miniatura';
-                            preview.append(image);
-                        } else {
-                            const placeholder = document.createElement('div');
-                            placeholder.className = 'thumb-img';
-                            placeholder.style.cssText = 'display:flex; align-items:center; justify-content:center; color:#999;';
-                            placeholder.textContent = 'Brak';
-                            preview.append(placeholder);
-                        }
-
-                        const [city, description, author] = details.children;
-                        city.textContent = p.miasto_nazwa || 'Nieznane miasto';
-                        description.textContent = p.wzor_opis || 'Brak opisu';
-                        author.textContent = `fot: ${p.autor_nazwa || 'nieznany'}`;
-                        edition.querySelector('strong').textContent = p.wydanie_numer;
-                        const [year, circulation] = edition.querySelectorAll('div');
-                        year.textContent = `rok: ${p.wydanie_rok && p.wydanie_rok !== '0' ? p.wydanie_rok : 'nieznany'}`;
-                        circulation.textContent = `nakład: ${p.wydanie_naklad || 'nieznany'}`;
-                        tbody.appendChild(tr);
-                    });
-                }
-
-                // Aktualizacja URL bez przeładowania (tylko przy resecie)
-                if (reset) {
-                    // Usuwamy offset z URL żeby był czysty
-                    params.delete('offset');
-                    window.history.pushState({}, '', `?${params.toString()}`);
-                }
-
-            } catch (e) {
-                console.error("Błąd ładowania kart", e);
-                tbody.innerHTML += '<tr><td colspan="4" style="text-align:center; color:red;">Błąd pobierania danych</td></tr>';
-            } finally {
-                isLoading = false;
-                loadingIndicator.style.display = 'none';
-            }
+        tr.innerHTML = `
+            <td></td>
+            <td></td>
+            <td>
+                <div style="font-weight:bold; color:#2c3e50;"></div>
+                <div style="font-size:0.9em; color:#555;"></div>
+                <div style="font-size:0.8em;"></div>
+            </td>
+            <td>
+                <strong></strong><br>
+                <div style="font-size:0.85em; color:#7f8c8d;"></div>
+                <div style="font-size:0.85em; color:#7f8c8d;"></div>
+            </td>
+        `;
+        const [number, preview, details, edition] = tr.cells;
+        number.textContent = p.wydawca_wzor_numer;
+        const imageId = String(p.awers_id);
+        const placeholder = document.createElement('span');
+        placeholder.textContent = 'Brak skanu';
+        if (p.awers_id && /^[0-9]+$/.test(imageId)) {
+            const image = document.createElement('img');
+            image.className = 'thumb-img';
+            image.alt = 'Miniatura';
+            image.addEventListener('error', () => image.replaceWith(placeholder), {once: true});
+            image.src = `/images/${imageId}_mini.jpg`;
+            preview.append(image);
+        } else {
+            preview.append(placeholder);
         }
 
-        // Obsługa Infinite Scroll
-        function handleScroll() {
-            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+        const [city, description, author] = details.children;
+        city.textContent = p.miasto_nazwa || 'Nieznane miasto';
+        description.textContent = p.wzor_opis || 'Brak opisu';
+        author.textContent = `fot: ${p.autor_nazwa || 'nieznany'}`;
+        edition.querySelector('strong').textContent = p.wydanie_numer;
+        const [year, circulation] = edition.querySelectorAll('div');
+        year.textContent = `rok: ${p.wydanie_rok && p.wydanie_rok !== '0' ? p.wydanie_rok : 'nieznany'}`;
+        circulation.textContent = `nakład: ${p.wydanie_naklad || 'nieznany'}`;
+        tbody.appendChild(tr);
+    }
 
-            // Jeśli jesteśmy 100px od dołu strony
-            if (scrollTop + clientHeight >= scrollHeight - 100) {
-                loadCards(false);
+    async function loadCards() {
+        if (pendingRequest || !hasMore) return;
+        const controller = new AbortController();
+        pendingRequest = controller;
+        const params = new URLSearchParams(activeFilters);
+        params.set('offset', currentOffset);
+        loading.style.display = 'block';
+        moreButton.hidden = true;
+        searchStatus.textContent = '';
+
+        try {
+            const response = await fetch(`/api/search?${params}`, {signal: controller.signal});
+            if (!response.ok) throw new Error('Błąd pobierania danych');
+            const cards = await response.json();
+            if (pendingRequest !== controller) return;
+            for (const card of cards) renderCard(card);
+            currentOffset += cards.length;
+            hasMore = cards.length === 10;
+            retryRequired = false;
+            if (currentOffset === 0) searchStatus.textContent = 'Brak wyników';
+        } catch (error) {
+            if (pendingRequest !== controller) return;
+            console.error(error);
+            retryRequired = true;
+            searchStatus.textContent = 'Błąd pobierania danych. Spróbuj ponownie.';
+        } finally {
+            if (pendingRequest === controller) {
+                pendingRequest = null;
+                loading.style.display = 'none';
+                moreButton.hidden = !hasMore;
+                moreButton.textContent = retryRequired ? 'Spróbuj ponownie' : 'Wczytaj więcej';
             }
         }
+    }
 
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            loadFilters();
-            loadCards(true); // Pierwsze ładowanie (reset)
-        });
+    function startSearch(filters, updateHistory = false) {
+        pendingRequest?.abort();
+        pendingRequest = null;
+        activeFilters = filters;
+        currentOffset = 0;
+        hasMore = true;
+        retryRequired = false;
+        tbody.replaceChildren();
+        if (updateHistory) {
+            const query = filters.toString();
+            const url = query ? `/?${query}` : '/';
+            if (url !== location.pathname + location.search) history.pushState(null, '', url);
+        }
+        return loadCards();
+    }
 
-        // Podpięcie scrolla
-        window.addEventListener('scroll', handleScroll);
+    function restoreSearch() {
+        const params = new URLSearchParams(location.search);
+        form.reset();
+        for (const name of ['q', 'wydawca_id', 'autor_id', 'miasto_id', 'sort', 'wzor_numer', 'rok']) {
+            if (!params.has(name)) continue;
+            const input = form.elements[name];
+            const value = params.get(name);
+            if (input.tagName === 'SELECT' && !Array.from(input.options).some(option => option.value === value)) {
+                if (name === 'sort' || !/^[0-9]+$/.test(value)) continue;
+                input.add(new Option(value, value));
+            }
+            input.value = value;
+        }
+        const filters = readFormFilters();
+        if (!form.elements.sort.options.length && params.get('sort')) filters.set('sort', params.get('sort'));
+        return startSearch(filters);
+    }
 
-        document.getElementById('searchForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            loadCards(true); // Reset i nowe szukanie
-        });
+    function readFormFilters() {
+        const filters = new URLSearchParams();
+        for (const [field, value] of new FormData(form)) {
+            if (value !== '' && (value !== '0' || !field.endsWith('_id'))) filters.set(field, value);
+        }
+        return filters;
+    }
 
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            document.getElementById('searchForm').reset();
-            loadCards(true);
-        });
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        await filtersReady;
+        startSearch(readFormFilters(), true);
+    });
+    document.getElementById('resetBtn').addEventListener('click', async () => {
+        await filtersReady;
+        form.reset();
+        startSearch(new URLSearchParams(), true);
+    });
+    moreButton.addEventListener('click', loadCards);
+    window.addEventListener('scroll', () => {
+        const {scrollTop, scrollHeight, clientHeight} = document.documentElement;
+        if (!retryRequired && scrollTop + clientHeight >= scrollHeight - 100) loadCards();
+    });
+    window.addEventListener('popstate', async () => {
+        await filtersReady;
+        restoreSearch();
+    });
 
+    const filtersReady = loadFilters().catch(error => {
+        console.error(error);
+        const message = document.createElement('p');
+        message.textContent = 'Nie udało się pobrać opcji filtrów.';
+        form.after(message);
+    });
+    filtersReady.then(restoreSearch);
     </script>
 
 </body>

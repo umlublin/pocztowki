@@ -11,12 +11,12 @@ Lista wynika z przeglądu kodu w rewizji [`40d50b1`](https://github.com/umlublin
 
 ## P1 — Błędy i nieukończone ścieżki
 
-- [ ] **Naprawić parametry listy i reset.** Wartość `0` w selektorach blokuje przejęcie filtrów z URL, a `wzor_numer` jest pomijany. Rozdzielić odczyt URL przy wejściu od działania „Reset”, które obecnie może ponownie odczytać stary filtr tekstowy. Zaczekać na słowniki przed ustawieniem wartości filtrów.
-- [ ] **Ustabilizować stronicowanie.** Pierwsze pobranie listy może ruszyć przed wypełnieniem selektora sortowania. Stosować `LIMIT/OFFSET` niezależnie od parametru `sort`, dodać jednoznaczny warunek rozstrzygający remisy i obsłużyć zmianę filtrów podczas pobierania.
-- [ ] **Dokończyć nawigację szczegółów i historię.** Zweryfikować w schemacie obecność `prev_id` i `next_id` lub obliczać sąsiadów według ustalonej kolejności. Obsługa `popstate` wywołuje ładowanie, które znów robi `pushState`. Rozdzielić przejście do nowego wydania od odtworzenia widoku z historii.
-- [ ] **Dokończyć spójny nagłówek sesji oraz obsługę ścieżek.** Lista ma pusty kontener logowania. Przy zewnętrznym `DATA_ROOT` trasa ikon dokleja nazwę katalogu bez separatora. Adres powrotu Auth0 podobnie zależy od końcowego ukośnika w `MY_URL`.
-- [ ] **Uodpornić generowanie miniatur.** Równoległe pierwsze żądania mogą tworzyć ten sam katalog lub zapisywać ten sam plik. Użyć tworzenia katalogu bez konfliktu i zapisu atomowego. Ustalić odświeżanie po podmianie oryginału, a w widokach obsłużyć niedostępny skan.
-- [ ] **Przygotować odtwarzalne uruchomienie i testy.** Udokumentować wymagane ustawienia i wersję SQLite, dostarczyć schemat lub sposób inicjalizacji oraz małą bazę testową i skany. Dodać testy listy, filtrów, uprawnień, transakcji edycji i miniaturek. Zweryfikować, czy zbędne zależności ORM i migracji można usunąć.
+- [x] Lista odtwarza filtry URL po pobraniu słowników. Reset czyści również filtry przekazane linkiem ze szczegółów.
+- [x] Stronicowanie używa stałego rozmiaru porcji i kolejności z rozstrzyganiem remisów. Zmiana filtrów przerywa poprzednie pobieranie.
+- [x] Sąsiedzi są wyznaczani według identyfikatora wydania. Odtworzenie z historii nie dopisuje wpisu.
+- [x] Oba widoki używają wspólnego nagłówka sesji. Ikony są zasobami aplikacji, a adres powrotu Auth0 jest normalizowany.
+- [x] Miniatury są zapisywane atomowo i wersjonowane według pliku źródłowego. Widoki pokazują informację o braku skanu.
+- [x] Instrukcja lokalnego uruchomienia, generator danych demonstracyjnych i testy integracyjne znajdują się w repozytorium. Usunięto nieużywane zależności ORM i migracji.
 
 ## P2 — Brakujące funkcje
 

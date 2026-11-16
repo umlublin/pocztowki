@@ -5,10 +5,10 @@ from authlib.integrations.flask_client import OAuth
 import sqlite3
 import os
 import re
+from tempfile import NamedTemporaryFile
 from os import environ as env
 from flask import Flask, redirect, render_template, request, g, send_from_directory, abort, jsonify,session
 from PIL import Image
-from requests.compat import quote_plus
 from waitress import serve
 from dotenv import find_dotenv, load_dotenv
 
@@ -17,8 +17,11 @@ if ENV_FILE:
     print("Load .env values from", ENV_FILE)
     load_dotenv(ENV_FILE)
 
-MY_URL = env.get("MY_URL")
-DATA_ROOT = env.get("DATA_ROOT", "./")
+MY_URL = env.get("MY_URL", "").rstrip("/")
+AUTH0_DOMAIN = env.get("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = env.get("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = env.get("AUTH0_CLIENT_SECRET")
+DATA_ROOT = os.path.abspath(env.get("DATA_ROOT", "."))
 
 admins = {sid for sid in (env.get('ADMIN_SID'), env.get('ADMIN_SID_BACKUP')) if sid}
 
@@ -31,7 +34,7 @@ SEARCH_SORT_FIELDS = {
 }
 SQLITE_MAX_INTEGER = 2**63 - 1
 
-file_handler = RotatingFileHandler(env.get("LOG_ROOT", './') + 'pocztowka_app.log', maxBytes=1024000, backupCount=10)
+file_handler = RotatingFileHandler(os.path.join(env.get("LOG_ROOT", "./"), "pocztowka_app.log"), maxBytes=1024000, backupCount=10)
 file_handler.setFormatter(logging.Formatter(
     '%(asctime)s %(levelname)s: %(message)s'
 ))
@@ -46,19 +49,20 @@ app.secret_key = env.get("APP_SECRET_KEY")
 
 DATABASE = os.path.join(DATA_ROOT, 'instance/pocztowki.db')
 IMAGE_FOLDER = os.path.join(DATA_ROOT, 'images')
-THUMB_FOLDER = os.path.join(DATA_ROOT, 'images/thumbnails')
+THUMB_FOLDER = os.path.join(IMAGE_FOLDER, 'thumbnails')
+ICON_FOLDER = os.path.join(app.root_path, 'icons')
 THUMB_SIZE = 120  # Max szerokość/wysokość w pikselach
 
 oauth = OAuth(app)
 
 oauth.register(
     "auth0",
-    client_id=env.get("AUTH0_CLIENT_ID"),
-    client_secret=env.get("AUTH0_CLIENT_SECRET"),
+    client_id=AUTH0_CLIENT_ID,
+    client_secret=AUTH0_CLIENT_SECRET,
     client_kwargs={
         "scope": "openid profile email",
     },
-    server_metadata_url=f'https://{env.get("AUTH0_DOMAIN")}/.well-known/openid-configuration'
+    server_metadata_url=f'https://{AUTH0_DOMAIN}/.well-known/openid-configuration'
 )
 
 def get_user_data():
@@ -91,9 +95,9 @@ def close_connection(exception):
 
 @app.route("/login")
 def login():
-    return oauth.auth0.authorize_redirect(
-        redirect_uri=f'{env.get("MY_URL")}callback'
-    )
+    if not all((MY_URL, AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, app.secret_key)):
+        abort(503, description='Logowanie nie jest skonfigurowane.')
+    return oauth.auth0.authorize_redirect(redirect_uri=f'{MY_URL}/callback')
 
 
 @app.route("/callback", methods=["GET", "POST"])
@@ -105,13 +109,15 @@ def callback():
 @app.route("/logout")
 def logout():
     session.clear()
+    if not all((MY_URL, AUTH0_DOMAIN, AUTH0_CLIENT_ID)):
+        return redirect("/")
     return redirect(
-        "https://" + env.get("AUTH0_DOMAIN")
+        "https://" + AUTH0_DOMAIN
         + "/v2/logout?"
         + urlencode(
             {
-                "returnTo": f'{env.get("MY_URL")}',
-                "client_id": env.get("AUTH0_CLIENT_ID"),
+                "returnTo": f'{MY_URL}/',
+                "client_id": AUTH0_CLIENT_ID,
             },
             quote_via=quote_plus,
         )
@@ -130,13 +136,9 @@ def dict_list_from_rows(rows):
     return [dict_from_row(r) for r in rows]
 
 
-def ensure_thumb_folder():
-    if not os.path.exists(THUMB_FOLDER):
-        os.makedirs(THUMB_FOLDER)
-
 @app.route('/icons/<path:path>')
 def send_icons(path):
-    return send_from_directory(DATA_ROOT + 'icons', path)
+    return send_from_directory(ICON_FOLDER, path)
 
 @app.route('/images/<int:img_id>.jpg')
 def serve_original_image(img_id):
@@ -147,36 +149,42 @@ def serve_original_image(img_id):
 @app.route('/images/<int:img_id>_mini.jpg')
 def serve_thumbnail(img_id):
     """Generuje, cachuje i serwuje miniaturkę"""
-    ensure_thumb_folder()
-
-    thumb_filename = f"{img_id}_mini.jpg"
-    thumb_path = os.path.join(THUMB_FOLDER, thumb_filename)
     original_path = os.path.join(IMAGE_FOLDER, f"{img_id}.jpg")
-
-    # 1. Sprawdź czy miniaturka już istnieje (cache na dysku)
-    if os.path.exists(thumb_path):
-        return send_from_directory(THUMB_FOLDER, thumb_filename)
-
-    # 2. Jeśli nie ma miniaturki, sprawdź czy jest oryginał
-    if not os.path.exists(original_path):
-        return abort(404)  # Brak zdjęcia
-
-    # 3. Generuj miniaturkę
+    temp_path = None
     try:
-        with Image.open(original_path) as img:
-            # Konwertuj na RGB (na wypadek PNG/RGBA) przed zapisem jako JPG
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
+        with open(original_path, 'rb') as original:
+            stat = os.fstat(original.fileno())
+            version = f'{stat.st_ino:x}-{stat.st_mtime_ns:x}-{stat.st_ctime_ns:x}-{stat.st_size:x}'
+            thumb_filename = f'{img_id}_{version}_mini.jpg'
+            thumb_path = os.path.join(THUMB_FOLDER, thumb_filename)
+            if not os.path.exists(thumb_path):
+                os.makedirs(THUMB_FOLDER, exist_ok=True)
+                with Image.open(original) as img:
+                    img.thumbnail((THUMB_SIZE, THUMB_SIZE))
+                    with NamedTemporaryFile(dir=THUMB_FOLDER, delete=False) as temp:
+                        temp_path = temp.name
+                        img.convert('RGB').save(temp, 'JPEG', quality=85)
 
-            img.thumbnail((THUMB_SIZE, THUMB_SIZE))  # Zachowuje proporcje
-            img.save(thumb_path, "JPEG", quality=85)
+                final_stat = os.fstat(original.fileno())
+                if (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size) != (
+                    final_stat.st_mtime_ns, final_stat.st_ctime_ns, final_stat.st_size
+                ):
+                    abort(503, description='Skan zmienił się podczas odczytu. Spróbuj ponownie.')
+                os.replace(temp_path, thumb_path)
+                temp_path = None
+    except FileNotFoundError:
+        abort(404)
+    except (OSError, Image.DecompressionBombError):
+        app.logger.exception('Nie udało się odczytać lub zapisać miniatury %s', img_id)
+        abort(500)
+    finally:
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
 
-        return send_from_directory(THUMB_FOLDER, thumb_filename)
-    except Exception as e:
-        print(f"Błąd generowania miniatury: {e}")
-        return abort(500)
-
-    # --- API Endpoints (JSON) ---
+    return send_from_directory(THUMB_FOLDER, thumb_filename)
 
 
 @app.route('/api/filters')
@@ -239,7 +247,7 @@ def api_search():
                  wz.wzor_opis, \
                  wz.wydawca_id, \
                  wz.wzor_numer, \
-                 concat(wz.wydawca_id, '-', wz.wzor_numer) as wydawca_wzor_numer, \
+                 (coalesce(wz.wydawca_id, '') || '-' || coalesce(wz.wzor_numer, '')) as wydawca_wzor_numer, \
                  wz.wzor_opis, \
                  m.miasto_nazwa, \
                  a.autor_nazwa
@@ -272,7 +280,7 @@ def api_search():
         sql += " AND wz.wydawca_id = ?"
         params.append(wydawca_filter)
     if wzor_numer:
-        sql += " AND wzor_numer = ?"
+        sql += " AND wz.wzor_numer = ?"
         params.append(wzor_numer)
 
     _, sort_column = SEARCH_SORT_FIELDS.get(sort_filter, SEARCH_SORT_FIELDS['wydanie_rok'])
@@ -291,7 +299,9 @@ def api_card_detail(wydanie_id):
     cursor = conn.cursor()
 
     sql = """
-          SELECT wyd.*, \
+          SELECT (SELECT max(wydanie_id) FROM wydanie WHERE wydanie_id < wyd.wydanie_id) AS prev_id,
+                 (SELECT min(wydanie_id) FROM wydanie WHERE wydanie_id > wyd.wydanie_id) AS next_id,
+                 wyd.*, \
                  wz.wzor_opis, \
                  wz.wydawca_id, \
                  wz.wzor_numer, \
@@ -406,13 +416,13 @@ def api_card_update(wydanie_id):
 @app.route('/')
 def index():
     # Nie przekazujemy już danych, frontend je sobie pobierze
-    return render_template('index.html')
+    return render_template('index.html', user=get_user_data())
 
 
 @app.route('/view/<int:card_id>')
 def view_card(card_id):
     # ID jest w URL, frontend wyciągnie je z window.location lub przekażemy je jako prostą zmienną JS
-    return render_template('detail.html', card_id=card_id)
+    return render_template('detail.html', card_id=card_id, user=get_user_data())
 
 
 if __name__ == '__main__':

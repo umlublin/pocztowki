@@ -39,9 +39,7 @@
     </style>
 </head>
 <body>
-<div class="user-info" id="user-info">
-    <div class="user-info-frame" id="user-info-frame"></div>
-</div>
+{% include 'session_header.html' %}
 <!-- Modal -->
 <div id="imageModal">
     <span class="close-modal">&times;</span>
@@ -64,7 +62,7 @@
             <div style="margin-bottom:15px; font-size: 0.9em; display:flex; align-items:center;">
                  <button id="btnPrev" style="margin-right:10px;">&larr; Poprzedni</button>
                  <button id="btnNext" style="margin-right:20px;">Następny &rarr;</button>
-                 <button id="btnEdit" class="btn-edit-toggle" hidden>Edytuj (E)</button>
+                 <button id="btnEdit" class="btn-edit-toggle"{% if not user.is_admin %} hidden{% endif %}>Edytuj (E)</button>
                  <span style="margin-left:10px; color:#999; font-size:0.8em;">(Strzałki / A / R)</span>
             </div>
 
@@ -144,55 +142,39 @@
     // Zmienne nawigacji
     let nextCardId = null;
     let prevCardId = null;
-    let awersId = null;
-    let rewersId = null;
+    let awersSrc = null;
+    let rewersSrc = null;
 
     let isEditMode = false;
-    let userdata = {};
+    const canEdit = {{ (user.is_admin|default(false))|tojson }};
+    let cardRequest = null;
 
-    function updateUserData() {
-        const container = document.getElementById('user-info-frame');
-        const isLoggedIn = Boolean(userdata.sub || userdata.nickname);
-        const link = document.createElement('a');
-        link.href = isLoggedIn ? '/logout' : '/login';
-        link.title = isLoggedIn ? 'Wyloguj' : 'Zaloguj';
-        const icon = document.createElement('img');
-        icon.src = isLoggedIn ? '/icons/icons8-logout-32.png' : '/icons/icons8-login-32.png';
-        icon.alt = link.title;
-        link.append(icon);
-        if (isLoggedIn && userdata.nickname) link.append(' ', userdata.nickname);
-        container.replaceChildren(link);
-        document.getElementById('btnEdit').hidden = userdata.is_admin !== true;
-    }
-
-    async function loadUserData() {
-        try {
-            const response = await fetch('/api/userdata.json', {headers: {'Accept': 'application/json'}});
-            if (!response.ok) throw new Error('Błąd pobierania danych sesji');
-            userdata = await response.json();
-        } catch (error) {
-            console.error(error);
-        }
-        updateUserData();
-    }
-
-    function appendScan(container, id, label) {
+    function appendScan(container, id, label, onLoad) {
         const imageId = String(id);
-        if (!id || !/^[0-9]+$/.test(imageId)) return null;
-
-        const src = `/images/${imageId}.jpg`;
+        const src = id && /^[0-9]+$/.test(imageId) ? `/images/${imageId}.jpg` : null;
         const box = document.createElement('div');
         box.className = 'image-box';
         const caption = document.createElement('span');
         caption.className = 'label';
         caption.textContent = label;
-        const image = document.createElement('img');
-        image.src = src;
-        image.alt = label;
-        image.addEventListener('click', () => openModal(src));
-        box.append(caption, image);
+        const missing = document.createElement('span');
+        missing.textContent = 'Brak skanu';
+        box.append(caption);
         container.append(box);
-        return imageId;
+        if (!src) {
+            box.append(missing);
+            return;
+        }
+
+        const image = document.createElement('img');
+        image.alt = label;
+        image.addEventListener('load', () => {
+            if (box.isConnected) onLoad(src);
+        }, {once: true});
+        image.addEventListener('error', () => image.replaceWith(missing), {once: true});
+        image.addEventListener('click', () => openModal(src));
+        box.append(image);
+        image.src = src;
     }
 
     // --- Pobieranie Danych ---
@@ -201,32 +183,41 @@
         if (filtersData) return;
         try {
             const res = await fetch('/api/filters');
+            if (!res.ok) throw new Error('Błąd pobierania słowników');
             filtersData = await res.json();
         } catch (e) {
             console.error("Błąd filtrów", e);
         }
     }
 
-    async function loadCardDetails(id) {
+    async function loadCardDetails(id, updateHistory = false) {
+        cardRequest?.abort();
+        const controller = new AbortController();
+        cardRequest = controller;
+        currentCardData = null;
+        nextCardId = prevCardId = null;
+        closeModal();
         if (isEditMode) toggleEditMode(false); // Wyjdź z edycji przy zmianie karty
 
+        document.getElementById('loading').textContent = 'Ładowanie danych pocztówki…';
         document.getElementById('loading').style.display = 'block';
         document.getElementById('mainContainer').style.display = 'none';
         document.getElementById('imagesContainer').innerHTML = '';
 
-        awersId = null; rewersId = null;
+        awersSrc = null; rewersSrc = null;
 
         try {
-            const response = await fetch(`/api/card/${id}`);
+            const response = await fetch(`/api/card/${encodeURIComponent(id)}`, {signal: controller.signal});
             if (!response.ok) throw new Error("Błąd pobierania");
-            currentCardData = await response.json(); // Zapisujemy do globalnej zmiennej
-            const p = currentCardData;
+            const p = await response.json();
+            if (cardRequest !== controller) return;
+            currentCardData = p;
 
             // Nawigacja
             currentCardId = p.wydanie_id;
             nextCardId = p.next_id;
             prevCardId = p.prev_id;
-            window.history.pushState({id: currentCardId}, '', `/view/${currentCardId}`);
+            if (updateHistory) window.history.pushState(null, '', `/view/${encodeURIComponent(id)}`);
 
             // UI - Header
             document.title = `Pocztówka ${p.wydanie_id}`;
@@ -234,8 +225,8 @@
             
             // Obrazki
             const imgContainer = document.getElementById('imagesContainer');
-            awersId = appendScan(imgContainer, p.awers_id, 'Awers');
-            rewersId = appendScan(imgContainer, p.rewers_id, 'Rewers');
+            appendScan(imgContainer, p.awers_id, 'Awers', src => { awersSrc = src; });
+            appendScan(imgContainer, p.rewers_id, 'Rewers', src => { rewersSrc = src; });
 
             renderViewMode(p);
             updateNavButtons();
@@ -244,9 +235,10 @@
             document.getElementById('mainContainer').style.display = 'block';
 
             // W tle pobierz filtry, żeby były gotowe do edycji
-            loadFiltersIfNeeded();
+            if (canEdit) loadFiltersIfNeeded();
 
         } catch (e) {
+            if (cardRequest !== controller) return;
             console.error(e);
             document.getElementById('loading').innerHTML = `<h3 style="color:red">Błąd.</h3><a href="/">Wróć</a>`;
         }
@@ -318,14 +310,21 @@
     // --- Edit Mode Logic ---
 
     async function toggleEditMode(enable) {
-        if (enable && (userdata.is_admin !== true || !currentCardData)) return;
+        if (enable && (!canEdit || !currentCardData)) return;
         isEditMode = enable;
         const viewDiv = document.getElementById('viewMode');
         const editDiv = document.getElementById('editMode');
         const btnEdit = document.getElementById('btnEdit');
 
         if (isEditMode) {
-            await loadFiltersIfNeeded(); // Upewnij się, że mamy słowniki
+            const card = currentCardData;
+            await loadFiltersIfNeeded();
+            if (!isEditMode || currentCardData !== card) return;
+            if (!filtersData) {
+                toggleEditMode(false);
+                alert('Nie udało się pobrać słowników edycji.');
+                return;
+            }
             prepareEditForm();
             viewDiv.style.display = 'none';
             editDiv.style.display = 'block';
@@ -400,7 +399,7 @@
     }
 
     async function saveChanges() {
-        if (!isEditMode || userdata.is_admin !== true) return;
+        if (!isEditMode || !canEdit) return;
         const data = {
             miasto_id: document.getElementById('editCity').value,
             wzor_opis: document.getElementById('editOpis').value,
@@ -416,8 +415,9 @@
             return;
         }
 
+        const requestAtSave = cardRequest;
         try {
-            const res = await fetch(`/api/card/${currentCardId}`, {
+            const res = await fetch(`/api/card/${encodeURIComponent(currentCardId)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -429,7 +429,7 @@
             }
 
             // Po sukcesie przeładuj dane (co wyłączy też tryb edycji)
-            await loadCardDetails(currentCardId);
+            if (cardRequest === requestAtSave) await loadCardDetails(currentCardId);
             
         } catch (e) {
             alert("Błąd: " + e.message);
@@ -444,8 +444,8 @@
         const btnNext = document.getElementById('btnNext');
         btnPrev.disabled = !prevCardId;
         btnNext.disabled = !nextCardId;
-        btnPrev.onclick = () => { if (prevCardId) loadCardDetails(prevCardId); };
-        btnNext.onclick = () => { if (nextCardId) loadCardDetails(nextCardId); };
+        btnPrev.onclick = () => { if (prevCardId) loadCardDetails(prevCardId, true); };
+        btnNext.onclick = () => { if (nextCardId) loadCardDetails(nextCardId, true); };
     }
 
     document.getElementById('btnEdit').onclick = () => toggleEditMode(!isEditMode);
@@ -476,10 +476,10 @@
         }
 
         // View Mode
-        if (e.key === "ArrowLeft" && prevCardId) loadCardDetails(prevCardId);
-        else if (e.key === "ArrowRight" && nextCardId) loadCardDetails(nextCardId);
-        else if (e.key.toLowerCase() === "a" && awersId) openModal(`/images/${awersId}.jpg`);
-        else if (e.key.toLowerCase() === "r" && rewersId) openModal(`/images/${rewersId}.jpg`);
+        if (e.key === "ArrowLeft" && prevCardId) loadCardDetails(prevCardId, true);
+        else if (e.key === "ArrowRight" && nextCardId) loadCardDetails(nextCardId, true);
+        else if (e.key.toLowerCase() === "a" && awersSrc) openModal(awersSrc);
+        else if (e.key.toLowerCase() === "r" && rewersSrc) openModal(rewersSrc);
         else if (e.key.toLowerCase() === "e") toggleEditMode(true);
     });
 
@@ -489,7 +489,6 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        loadUserData();
         loadCardDetails(currentCardId);
     });
 

@@ -1,0 +1,9 @@
+<div class="user-info" id="user-info">
+    <div class="user-info-frame" id="user-info-frame">
+        {% if user %}
+        <a href="{{ url_for('logout') }}" title="Wyloguj"><img src="{{ url_for('send_icons', path='icons8-logout-32.png') }}" alt="Wyloguj"> {{ user.nickname|default('') }}</a>
+        {% else %}
+        <a href="{{ url_for('login') }}" title="Zaloguj"><img src="{{ url_for('send_icons', path='icons8-login-32.png') }}" alt="Zaloguj"></a>
+        {% endif %}
+    </div>
+</div>
