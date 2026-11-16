@@ -13,6 +13,7 @@ from PIL import Image
 
 import server
 from demo_data import create_demo_data
+from migrate_authors import migrate
 
 
 class CatalogTest(unittest.TestCase):
@@ -38,6 +39,84 @@ class CatalogTest(unittest.TestCase):
     def login(self, user_id):
         with self.client.session_transaction() as session:
             session['user'] = {'userinfo': {'sub': user_id, 'nickname': 'Jan & Ola'}}
+
+    def test_photographer_edit_permissions_and_shared_data(self):
+        data = {'autor_nazwa': 'Jan Fotograf', 'alias': 'J. Fotograf',
+                'autor_lata': '1890–1965', 'autor_url': 'https://example.org/biogram'}
+        self.assertEqual(self.client.get('/photographers').status_code, 200)
+        self.assertNotIn(b'/photographers/1/edit', self.client.get('/photographers').data)
+        for user in (None, 'other'):
+            if user:
+                self.login(user)
+            self.assertEqual(self.client.get('/photographers/1/edit').status_code, 403)
+            self.assertEqual(self.client.put('/api/photographers/1', json=data).status_code, 403)
+        self.login('demo-admin')
+        self.assertIn(b'/photographers/1/edit', self.client.get('/photographers').data)
+        self.assertEqual(self.client.get('/photographers/1/edit').status_code, 200)
+        self.assertEqual(self.client.put('/api/photographers/1', json=data).status_code, 200)
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute(
+                'SELECT autor_nazwa, alias, autor_lata, autor_url FROM autorzy WHERE autor_id=1'
+            ).fetchone(), tuple(data.values()))
+            self.assertEqual(db.execute('SELECT autor_nazwa FROM autorzy WHERE autor_id=2').fetchone()[0], 'Anna Nowak')
+        for card_id in (1, 2):
+            card = self.client.get(f'/api/card/{card_id}').get_json()
+            self.assertEqual(card['autor_nazwa'], data['autor_nazwa'])
+            self.assertEqual(card['autor_lata'], data['autor_lata'])
+            self.assertEqual(card['autor_url'], data['autor_url'])
+        page = self.client.get('/photographers?q=j.+FOTOGRAF').get_data(as_text=True)
+        self.assertIn('Jan Fotograf', page)
+        self.assertNotIn('Anna Nowak', page)
+        self.assertIn('https://example.org/biogram', page)
+        self.assertIn('/?autor_id=1', page)
+        for path in ('/', '/view/1'):
+            self.assertIn(b'href="/photographers"', self.client.get(path).data)
+
+    def test_photographer_validation_and_clear_optional_fields(self):
+        self.login('demo-admin')
+        data = {'autor_nazwa': ' Jan ', 'alias': '', 'autor_lata': '', 'autor_url': ''}
+        for invalid in (None, [], {}, {**data, 'autor_nazwa': ' '},
+                        {**data, 'alias': 123}, {**data, 'autor_lata': 'x'*101},
+                        {**data, 'autor_nazwa': 'x'*201}, {**data, 'autor_url': 'x'*2049}):
+            self.assertEqual(self.client.put('/api/photographers/1', json=invalid).status_code, 400)
+        for url in ('javascript:alert(1)', '//example.org', 'https://', 'https://[bad',
+                    'https://example.org:bad', 'https://user:pass@example.org', 'https://exa mple.org'):
+            self.assertEqual(self.client.put('/api/photographers/1', json={**data, 'autor_url': url}).status_code, 400)
+        self.assertEqual(self.client.get('/photographers/999/edit').status_code, 404)
+        self.assertEqual(self.client.put('/api/photographers/999', json=data).status_code, 404)
+        self.assertEqual(self.client.put('/api/photographers/1', json=data).status_code, 200)
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute('SELECT autor_nazwa, alias, autor_lata, autor_url FROM autorzy WHERE autor_id=1').fetchone(), ('Jan', None, None, None))
+
+    def test_photographer_html_escaping_and_empty_search(self):
+        self.login('demo-admin')
+        data = {'autor_nazwa': '<script>alert(1)</script>', 'alias': '<img src=x onerror=alert(1)>',
+                'autor_lata': '1900–?', 'autor_url': ''}
+        self.assertEqual(self.client.put('/api/photographers/1', json=data).status_code, 200)
+        for path in ('/photographers', '/photographers/1/edit'):
+            page = self.client.get(path).get_data(as_text=True)
+            self.assertIn('&lt;script&gt;', page)
+            self.assertNotIn('<script>alert(1)</script>', page)
+            self.assertNotIn('<img src=x', page)
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("UPDATE autorzy SET autor_url='javascript:alert(1)' WHERE autor_id=1")
+        self.assertNotIn(b'href="javascript:', self.client.get('/photographers').data)
+        self.assertIn('Nie znaleziono fotografów.', self.client.get('/photographers?q=brak').get_data(as_text=True))
+
+    def test_author_alias_migration_preserves_legacy_database(self):
+        legacy = self.database.parent / 'legacy.db'
+        with closing(sqlite3.connect(legacy)) as db, db:
+            db.execute('CREATE TABLE autorzy (autor_id INTEGER PRIMARY KEY, autor_nazwa TEXT, autor_lata TEXT, autor_url TEXT)')
+            db.execute("INSERT INTO autorzy VALUES (7, 'Fotograf', '1900–1980', 'https://example.org')")
+        migrate(legacy)
+        migrate(legacy)
+        with closing(sqlite3.connect(legacy)) as db:
+            self.assertEqual(db.execute('SELECT * FROM autorzy').fetchall(),
+                             [(7, 'Fotograf', '1900–1980', 'https://example.org', None)])
+        missing = legacy.parent / 'missing.db'
+        with self.assertRaises(sqlite3.OperationalError):
+            migrate(missing)
+        self.assertFalse(missing.exists())
 
     def test_search_pages_filters_and_ties(self):
         page = self.client.get('/api/search?sort=').get_json()

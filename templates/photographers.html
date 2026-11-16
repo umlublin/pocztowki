@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fotografowie — Repozytorium Pocztówek</title>
+    {% include 'photographers_style.html' %}
+</head>
+<body>
+{% include 'session_header.html' %}
+<main>
+    <h1>Fotografowie</h1>
+    <p>Autorzy fotografii na pocztówkach. Alias to nazwa, pod którą fotograf podpisany jest na pocztówce.</p>
+    <form method="get" class="search">
+        <label for="q">Nazwisko lub alias</label>
+        <input id="q" name="q" type="search" value="{{ query }}">
+        <button type="submit">Szukaj</button>
+        {% if query %}<a href="{{ url_for('photographers') }}">Pokaż wszystkich</a>{% endif %}
+    </form>
+    <p>Liczba wyników: {{ authors|length }}</p>
+    {% if authors %}
+    <div class="table-wrapper">
+        <table>
+            <caption class="sr-only">Lista fotografów</caption>
+            <thead><tr><th scope="col">Imię i nazwisko</th><th scope="col">Alias na pocztówce</th><th scope="col">Daty życia</th><th scope="col">Biogram</th>{% if user.is_admin %}<th scope="col">Edycja</th>{% endif %}</tr></thead>
+            <tbody>
+            {% for author in authors %}
+                <tr>
+                    <td><a href="{{ url_for('index', autor_id=author.autor_id) }}">{{ author.autor_nazwa or 'Nieznany' }}</a></td>
+                    <td>{{ author.alias or '—' }}</td>
+                    <td>{{ author.autor_lata or '—' }}</td>
+                    <td>{% if author.autor_url and author.autor_url.lower().startswith(('https://', 'http://')) %}<a href="{{ author.autor_url }}" target="_blank" rel="noopener noreferrer">Biogram<span class="sr-only">: {{ author.autor_nazwa }} (nowa karta)</span></a>{% else %}—{% endif %}</td>
+                    {% if user.is_admin %}<td><a href="{{ url_for('edit_photographer', author_id=author.autor_id) }}">Edytuj<span class="sr-only">: {{ author.autor_nazwa }}</span></a></td>{% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p>Nie znaleziono fotografów.</p>{% endif %}
+</main>
+</body>
+</html>

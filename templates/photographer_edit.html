@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edycja fotografa — {{ author.autor_nazwa }}</title>
+    {% include 'photographers_style.html' %}
+</head>
+<body>
+{% include 'session_header.html' %}
+<main>
+    <a href="{{ url_for('photographers') }}">← Lista fotografów</a>
+    <h1>Edycja fotografa</h1>
+    <p>Dane fotografa są wspólne dla wszystkich przypisanych mu pocztówek.</p>
+    <form id="photographer-form" action="{{ url_for('update_photographer', author_id=author.autor_id) }}">
+        <div class="field">
+            <label for="autor_nazwa">Imię i nazwisko (wymagane)</label>
+            <input id="autor_nazwa" name="autor_nazwa" value="{{ author.autor_nazwa or '' }}" required maxlength="200">
+        </div>
+        <div class="field">
+            <label for="alias">Alias na pocztówce</label>
+            <input id="alias" name="alias" value="{{ author.alias or '' }}" maxlength="200" aria-describedby="alias-hint">
+            <small class="hint" id="alias-hint">Nazwa, pod którą nazwisko fotografa pojawia się na pocztówce.</small>
+        </div>
+        <div class="field">
+            <label for="autor_lata">Daty urodzenia i śmierci</label>
+            <input id="autor_lata" name="autor_lata" value="{{ author.autor_lata or '' }}" maxlength="100" aria-describedby="dates-hint">
+            <small class="hint" id="dates-hint">Np. 1890–1965, 12.03.1890–1965 lub 1890–?. Możesz pozostawić puste.</small>
+        </div>
+        <div class="field">
+            <label for="autor_url">Link do biogramu</label>
+            <input id="autor_url" name="autor_url" type="url" value="{{ author.autor_url or '' }}" maxlength="2048" aria-describedby="url-hint">
+            <small class="hint" id="url-hint">Adres internetowy zaczynający się od https:// lub http://.</small>
+        </div>
+        <div class="actions"><button type="submit" id="save-button">Zapisz zmiany</button><a href="{{ url_for('photographers') }}">Anuluj</a></div>
+        <p id="save-status" role="status" aria-live="polite"></p>
+    </form>
+</main>
+<script>
+    const form = document.getElementById('photographer-form');
+    const status = document.getElementById('save-status');
+    const button = document.getElementById('save-button');
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        button.disabled = true;
+        status.textContent = 'Zapisywanie…';
+        try {
+            const response = await fetch(form.action, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(Object.fromEntries(new FormData(form))),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Nie udało się zapisać zmian.');
+            status.textContent = 'Zapisano zmiany.';
+        } catch (error) {
+            status.textContent = error.message || 'Błąd połączenia. Spróbuj ponownie.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>

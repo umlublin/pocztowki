@@ -1,3 +1,7 @@
+<nav aria-label="Nawigacja główna" style="display:flex; gap:16px; margin-bottom:16px;">
+    <a href="{{ url_for('index') }}">Pocztówki</a>
+    <a href="{{ url_for('photographers') }}">Fotografowie</a>
+</nav>
 <div class="user-info" id="user-info">
     <div class="user-info-frame" id="user-info-frame">
         {% if user %}

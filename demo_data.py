@@ -18,7 +18,8 @@ def create_demo_data(root):
         db.executescript("""
             CREATE TABLE miasta (miasto_id INTEGER PRIMARY KEY, miasto_nazwa TEXT);
             CREATE TABLE autorzy (
-                autor_id INTEGER PRIMARY KEY, autor_nazwa TEXT, autor_lata TEXT, autor_url TEXT
+                autor_id INTEGER PRIMARY KEY, autor_nazwa TEXT, autor_lata TEXT, autor_url TEXT,
+                alias TEXT
             );
             CREATE TABLE wydawcy (wydawca_id INTEGER PRIMARY KEY, wydawca_nazwa TEXT);
             CREATE TABLE cenzura (cenzura_id INTEGER PRIMARY KEY, cenzura_numer TEXT);
@@ -34,7 +35,7 @@ def create_demo_data(root):
                 wydanie_zamowienie TEXT, awers_id INTEGER, rewers_id INTEGER
             );
             INSERT INTO miasta VALUES (1, 'Lublin'), (2, 'Kraków');
-            INSERT INTO autorzy VALUES (1, 'Jan Kowalski', NULL, NULL), (2, 'Anna Nowak', NULL, NULL);
+            INSERT INTO autorzy (autor_id, autor_nazwa) VALUES (1, 'Jan Kowalski'), (2, 'Anna Nowak');
             INSERT INTO wydawcy VALUES (1, 'Wydawca demonstracyjny');
             INSERT INTO cenzura VALUES (1, 'D1');
             INSERT INTO wzory VALUES (1, 'Panorama Lublina', 'A1', 1, 1, 1),
