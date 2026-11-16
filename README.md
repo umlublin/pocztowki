@@ -36,6 +36,28 @@ Testy tworzą osobny katalog tymczasowy i obejmują stronicowanie, filtry, sąsi
 
 ## Zakres katalogowania
 
+### Fotografowie
+
+Odnośnik „Fotografowie” w nawigacji prowadzi do publicznej listy `/photographers`,
+z wyszukiwaniem po nazwisku lub aliasie. Nazwisko prowadzi do pocztówek fotografa.
+Administrator może edytować imię i nazwisko (`autor_nazwa`), nazwę widoczną na
+pocztówce (`alias`), daty urodzenia i śmierci (`autor_lata`, tekst pozwalający także
+na daty niepełne) oraz internetowy link do biogramu (`autor_url`, HTTP/HTTPS).
+Pola poza imieniem i nazwiskiem są opcjonalne. Zmiana dotyczy istniejącego rekordu
+w tabeli `autorzy`, więc zachowuje powiązania z pocztówkami.
+
+Nowe dane demonstracyjne zawierają już kolumnę `alias`. Dla istniejącej bazy
+zatrzymaj aplikację, wykonaj kopię zapasową pliku bazy i uruchom jednorazowo:
+
+```sh
+.venv/bin/python migrate_authors.py /sciezka/do/instance/pocztowki.db
+```
+
+Migracja dodaje brakującą kolumnę `alias TEXT` bez zmiany istniejących rekordów.
+Można ją bezpiecznie powtórzyć. Wykonaj ją przed wejściem na nową listę fotografów.
+
+### Pocztówki
+
 Administrator może edytować istniejące wydanie i jego wzór, w tym nakład, tekstowe oznaczenie cenzury, numer cenzury ze słownika i numer wzoru. Zmiana numeru wzoru obejmuje wszystkie jego wydania. Przyciski „Dodaj miasto”, „Dodaj autora” i „Dodaj wydawcę” zapisują wpis słownikowy od razu i wybierają go w formularzu. Przypisanie do wzoru następuje po zapisaniu pocztówki. Nazwy różniące się tylko wielkością liter zwracają istniejący wpis. Słowniki muszą mieć identyfikatory generowane przy zapisie, jak w schemacie demonstracyjnym.
 
 Lista pozwala filtrować po roku, numerze cenzury i pełnej nazwie tagu. Wielkość liter w tagu nie ma znaczenia.

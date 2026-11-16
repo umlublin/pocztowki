@@ -1,6 +1,6 @@
 from logging.handlers import RotatingFileHandler
 import logging
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode, urlsplit
 from authlib.integrations.flask_client import OAuth
 import sqlite3
 import os
@@ -398,6 +398,78 @@ def read_card_integer(data, field, minimum, empty_value):
     if type(value) is not int or not minimum <= value <= SQLITE_MAX_INTEGER:
         raise ValueError(f'Nieprawidłowa wartość pola {field}.')
     return value
+
+
+@app.route('/photographers')
+def photographers():
+    query = request.args.get('q', '').strip()
+    rows = get_db().execute(
+        'SELECT autor_id, autor_nazwa, alias, autor_lata, autor_url '
+        'FROM autorzy ORDER BY autor_nazwa, autor_id'
+    ).fetchall()
+    if query:
+        rows = [row for row in rows if any(
+            query.casefold() in (row[field] or '').casefold()
+            for field in ('autor_nazwa', 'alias')
+        )]
+    return render_template('photographers.html', authors=rows, query=query,
+                           user=get_user_data())
+
+
+@app.route('/photographers/<int:author_id>/edit')
+def edit_photographer(author_id):
+    if not get_user_data().get('is_admin'):
+        abort(403)
+    author = get_db().execute(
+        'SELECT autor_id, autor_nazwa, alias, autor_lata, autor_url '
+        'FROM autorzy WHERE autor_id = ?', (author_id,)
+    ).fetchone()
+    if author is None:
+        abort(404)
+    return render_template('photographer_edit.html', author=author, user=get_user_data())
+
+
+@app.route('/api/photographers/<int:author_id>', methods=['PUT'])
+def update_photographer(author_id):
+    if not get_user_data().get('is_admin'):
+        return jsonify({'error': 'Edycja wymaga uprawnień administratora.'}), 403
+    data = request.get_json(silent=True)
+    limits = {'autor_nazwa': 200, 'alias': 200, 'autor_lata': 100, 'autor_url': 2048}
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Oczekiwano obiektu JSON z danymi fotografa.'}), 400
+    values = {}
+    for field, limit in limits.items():
+        value = data.get(field)
+        if not isinstance(value, str) or len(value.strip()) > limit:
+            return jsonify({'error': f'Pole {field} musi być tekstem do {limit} znaków.'}), 400
+        values[field] = value.strip()
+    if not values['autor_nazwa']:
+        return jsonify({'error': 'Podaj imię i nazwisko fotografa.'}), 400
+    if values['autor_url']:
+        try:
+            url = urlsplit(values['autor_url'])
+            if (url.scheme not in ('http', 'https') or not url.hostname
+                    or url.username is not None or url.password is not None
+                    or any(char.isspace() or ord(char) < 32 for char in values['autor_url'])):
+                raise ValueError
+            url.port  # Sprawdzenie poprawności portu.
+        except ValueError:
+            return jsonify({'error': 'Link do biogramu musi być poprawnym adresem HTTP lub HTTPS.'}), 400
+    try:
+        conn = get_db()
+        with conn:
+            updated = conn.execute(
+                'UPDATE autorzy SET autor_nazwa = ?, alias = ?, autor_lata = ?, autor_url = ? '
+                'WHERE autor_id = ?',
+                (values['autor_nazwa'], values['alias'] or None,
+                 values['autor_lata'] or None, values['autor_url'] or None, author_id),
+            )
+            if updated.rowcount != 1:
+                return jsonify({'error': 'Fotograf nie istnieje.'}), 404
+        return jsonify({'success': True})
+    except sqlite3.Error:
+        app.logger.exception('Nie udało się zapisać fotografa %s', author_id)
+        return jsonify({'error': 'Nie udało się zapisać danych fotografa.'}), 500
 
 
 @app.route('/api/card/<int:wydanie_id>', methods=['PUT'])
