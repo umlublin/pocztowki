@@ -18,8 +18,8 @@
             <input id="autor_nazwa" name="autor_nazwa" value="{{ author.autor_nazwa or '' }}" required maxlength="200">
         </div>
         <div class="field">
-            <label for="alias">Alias na pocztówce</label>
-            <input id="alias" name="alias" value="{{ author.alias or '' }}" maxlength="200" aria-describedby="alias-hint">
+            <label for="aliases">Podpis na pocztówce</label>
+            <input id="aliases" name="aliases" value="{{ author.aliases or '' }}" maxlength="200" aria-describedby="alias-hint">
             <small class="hint" id="alias-hint">Nazwa, pod którą nazwisko fotografa pojawia się na pocztówce.</small>
         </div>
         <div class="field">
@@ -30,7 +30,7 @@
         <div class="field">
             <label for="autor_url">Link do biogramu</label>
             <input id="autor_url" name="autor_url" type="url" value="{{ author.autor_url or '' }}" maxlength="2048" aria-describedby="url-hint">
-            <small class="hint" id="url-hint">Adres internetowy zaczynający się od https:// lub http://.</small>
+            <small class="hint" id="url-hint">Adres internetowy zaczynający się od https://.</small>
         </div>
         <div class="actions"><button type="submit" id="save-button">Zapisz zmiany</button><a href="{{ url_for('photographers') }}">Anuluj</a></div>
         <p id="save-status" role="status" aria-live="polite"></p>

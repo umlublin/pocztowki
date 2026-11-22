@@ -404,13 +404,14 @@ def read_card_integer(data, field, minimum, empty_value):
 def photographers():
     query = request.args.get('q', '').strip()
     rows = get_db().execute(
-        'SELECT autor_id, autor_nazwa, alias, autor_lata, autor_url '
-        'FROM autorzy ORDER BY autor_nazwa, autor_id'
+        'SELECT autor_id, autor_nazwa, aliases, autor_lata, autor_url, count(*) autor_count
+         FROM autorzy JOIN wzory ON wzory.autor_id = autorzy.autor_id GROUP BY autor_id
+         ORDER BY autor_nazwa, autor_id'
     ).fetchall()
     if query:
         rows = [row for row in rows if any(
             query.casefold() in (row[field] or '').casefold()
-            for field in ('autor_nazwa', 'alias')
+            for field in ('autor_nazwa', 'aliases')
         )]
     return render_template('photographers.html', authors=rows, query=query,
                            user=get_user_data())
@@ -421,7 +422,7 @@ def edit_photographer(author_id):
     if not get_user_data().get('is_admin'):
         abort(403)
     author = get_db().execute(
-        'SELECT autor_id, autor_nazwa, alias, autor_lata, autor_url '
+        'SELECT autor_id, autor_nazwa, aliases, autor_lata, autor_url '
         'FROM autorzy WHERE autor_id = ?', (author_id,)
     ).fetchone()
     if author is None:
@@ -434,7 +435,7 @@ def update_photographer(author_id):
     if not get_user_data().get('is_admin'):
         return jsonify({'error': 'Edycja wymaga uprawnień administratora.'}), 403
     data = request.get_json(silent=True)
-    limits = {'autor_nazwa': 200, 'alias': 200, 'autor_lata': 100, 'autor_url': 2048}
+    limits = {'autor_nazwa': 200, 'aliases': 200, 'autor_lata': 100, 'autor_url': 2048}
     if not isinstance(data, dict):
         return jsonify({'error': 'Oczekiwano obiektu JSON z danymi fotografa.'}), 400
     values = {}
@@ -459,9 +460,9 @@ def update_photographer(author_id):
         conn = get_db()
         with conn:
             updated = conn.execute(
-                'UPDATE autorzy SET autor_nazwa = ?, alias = ?, autor_lata = ?, autor_url = ? '
+                'UPDATE autorzy SET autor_nazwa = ?, aliases = ?, autor_lata = ?, autor_url = ? '
                 'WHERE autor_id = ?',
-                (values['autor_nazwa'], values['alias'] or None,
+                (values['autor_nazwa'], values['aliases'] or None,
                  values['autor_lata'] or None, values['autor_url'] or None, author_id),
             )
             if updated.rowcount != 1:
