@@ -404,9 +404,9 @@ def read_card_integer(data, field, minimum, empty_value):
 def photographers():
     query = request.args.get('q', '').strip()
     rows = get_db().execute(
-        'SELECT autor_id, autor_nazwa, aliases, autor_lata, autor_url, count(*) autor_count
-         FROM autorzy JOIN wzory ON wzory.autor_id = autorzy.autor_id GROUP BY autor_id
-         ORDER BY autor_nazwa, autor_id'
+        'SELECT autor_id, autor_nazwa, aliases, autor_lata, autor_url, count(*) autor_count'
+        'FROM autorzy JOIN wzory ON wzory.autor_id = autorzy.autor_id GROUP BY autor_id'
+        'ORDER BY autor_nazwa, autor_id'
     ).fetchall()
     if query:
         rows = [row for row in rows if any(
