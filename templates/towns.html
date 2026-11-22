@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miejscowości — Repozytorium Pocztówek</title>
+    {% include 'photographers_style.html' %}
+    <style>table { min-width: 0; }</style>
+</head>
+<body>
+{% include 'session_header.html' %}
+<main>
+    <h1>Miejscowości</h1>
+    <p>Wybierz miejscowość, aby zobaczyć przedstawiające ją pocztówki.</p>
+    <form method="get" class="search">
+        <label for="q">Nazwa miejscowości</label>
+        <input id="q" name="q" type="search" value="{{ query }}">
+        <button type="submit">Szukaj</button>
+        {% if query %}<a href="{{ url_for('towns') }}">Pokaż wszystkie</a>{% endif %}
+    </form>
+    <p>Liczba wyników: {{ towns|length }}</p>
+    {% if towns %}
+    <div class="table-wrapper">
+        <table>
+            <caption class="sr-only">Lista miejscowości</caption>
+            <thead><tr><th scope="col">Miejscowość</th>{% if user.is_admin %}<th scope="col">Edycja</th>{% endif %}</tr></thead>
+            <tbody>
+            {% for town in towns %}
+                <tr>
+                    <td><a href="{{ url_for('index', miasto_id=town.miasto_id) }}">{{ town.miasto_nazwa or 'Nieznana' }}</a></td>
+                    {% if user.is_admin %}<td><a href="{{ url_for('edit_town', town_id=town.miasto_id) }}">Edytuj<span class="sr-only">: {{ town.miasto_nazwa }}</span></a></td>{% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p>Nie znaleziono miejscowości.</p>{% endif %}
+</main>
+</body>
+</html>

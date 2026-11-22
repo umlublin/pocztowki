@@ -56,6 +56,15 @@ zatrzymaj aplikację, wykonaj kopię zapasową pliku bazy i uruchom jednorazowo:
 Migracja dodaje brakującą kolumnę `alias TEXT` bez zmiany istniejących rekordów.
 Można ją bezpiecznie powtórzyć. Wykonaj ją przed wejściem na nową listę fotografów.
 
+### Miejscowości
+
+Odnośnik „Miejscowości” prowadzi do publicznej listy `/towns` z wyszukiwaniem po
+nazwie (bez rozróżniania wielkości liter). Nazwa prowadzi do pocztówek wybranej
+miejscowości. Administrator może zmienić `miasto_nazwa` w tabeli `miasta`.
+Zapis zachowuje identyfikator i powiązania z wzorami oraz odrzuca pustą nazwę,
+nazwę dłuższą niż 200 znaków i duplikat nazwy innej miejscowości.
+Nie jest wymagana migracja bazy danych.
+
 ### Pocztówki
 
 Administrator może edytować istniejące wydanie i jego wzór, w tym nakład, tekstowe oznaczenie cenzury, numer cenzury ze słownika i numer wzoru. Zmiana numeru wzoru obejmuje wszystkie jego wydania. Przyciski „Dodaj miasto”, „Dodaj autora” i „Dodaj wydawcę” zapisują wpis słownikowy od razu i wybierają go w formularzu. Przypisanie do wzoru następuje po zapisaniu pocztówki. Nazwy różniące się tylko wielkością liter zwracają istniejący wpis. Słowniki muszą mieć identyfikatory generowane przy zapisie, jak w schemacie demonstracyjnym.
