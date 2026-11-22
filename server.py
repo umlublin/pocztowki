@@ -400,6 +400,54 @@ def read_card_integer(data, field, minimum, empty_value):
     return value
 
 
+@app.route('/towns')
+def towns():
+    query = request.args.get('q', '').strip()
+    rows = get_db().execute(
+        'SELECT miasto_id, miasto_nazwa FROM miasta ORDER BY miasto_nazwa, miasto_id'
+    ).fetchall()
+    if query:
+        rows = [row for row in rows if query.casefold() in (row['miasto_nazwa'] or '').casefold()]
+    return render_template('towns.html', towns=rows, query=query, user=get_user_data())
+
+
+@app.route('/towns/<int:town_id>/edit')
+def edit_town(town_id):
+    if not get_user_data().get('is_admin'):
+        abort(403)
+    town = get_db().execute(
+        'SELECT miasto_id, miasto_nazwa FROM miasta WHERE miasto_id = ?', (town_id,)
+    ).fetchone()
+    if town is None:
+        abort(404)
+    return render_template('town_edit.html', town=town, user=get_user_data())
+
+
+@app.route('/api/towns/<int:town_id>', methods=['PUT'])
+def update_town(town_id):
+    if not get_user_data().get('is_admin'):
+        return jsonify({'error': 'Edycja wymaga uprawnień administratora.'}), 403
+    data = request.get_json(silent=True)
+    name = data.get('miasto_nazwa') if isinstance(data, dict) else None
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:
+        return jsonify({'error': 'Podaj nazwę miejscowości o długości od 1 do 200 znaków.'}), 400
+    name = name.strip()
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if conn.execute('SELECT 1 FROM miasta WHERE miasto_id = ?', (town_id,)).fetchone() is None:
+                return jsonify({'error': 'Miejscowość nie istnieje.'}), 404
+            for row in conn.execute('SELECT miasto_nazwa FROM miasta WHERE miasto_id != ?', (town_id,)):
+                if (row['miasto_nazwa'] or '').strip().casefold() == name.casefold():
+                    return jsonify({'error': 'Miejscowość o tej nazwie już istnieje.'}), 409
+            conn.execute('UPDATE miasta SET miasto_nazwa = ? WHERE miasto_id = ?', (name, town_id))
+        return jsonify({'success': True})
+    except sqlite3.Error:
+        app.logger.exception('Nie udało się zapisać miejscowości %s', town_id)
+        return jsonify({'error': 'Nie udało się zapisać miejscowości.'}), 500
+
+
 @app.route('/photographers')
 def photographers():
     query = request.args.get('q', '').strip()

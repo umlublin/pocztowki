@@ -40,6 +40,60 @@ class CatalogTest(unittest.TestCase):
         with self.client.session_transaction() as session:
             session['user'] = {'userinfo': {'sub': user_id, 'nickname': 'Jan & Ola'}}
 
+    def test_town_permissions_and_shared_data(self):
+        data = {'miasto_nazwa': ' Nowy Lublin '}
+        self.assertEqual(self.client.get('/towns').status_code, 200)
+        self.assertNotIn(b'/towns/1/edit', self.client.get('/towns').data)
+        for user in (None, 'other'):
+            if user:
+                self.login(user)
+            self.assertEqual(self.client.get('/towns/1/edit').status_code, 403)
+            self.assertEqual(self.client.put('/api/towns/1', json=data).status_code, 403)
+        self.login('demo-admin')
+        self.assertIn(b'/towns/1/edit', self.client.get('/towns').data)
+        self.assertEqual(self.client.get('/towns/1/edit').status_code, 200)
+        self.assertEqual(self.client.put('/api/towns/1', json=data).status_code, 200)
+        for card_id in (1, 2):
+            card = self.client.get(f'/api/card/{card_id}').get_json()
+            self.assertEqual((card['miasto_id'], card['miasto_nazwa']), (1, 'Nowy Lublin'))
+        self.assertIn({'miasto_id': 1, 'miasto_nazwa': 'Nowy Lublin'},
+                      self.client.get('/api/filters').get_json()['miasta'])
+        self.assertEqual(self.client.get('/api/card/12').get_json()['miasto_nazwa'], 'Kraków')
+        self.assertEqual(len(self.client.get('/api/search?miasto_id=1').get_json()), 10)
+        for path in ('/', '/view/1', '/photographers'):
+            self.assertIn(b'href="/towns"', self.client.get(path).data)
+
+    def test_town_search_escaping_and_validation(self):
+        self.login('demo-admin')
+        for data in (None, [], {}, {'miasto_nazwa': None}, {'miasto_nazwa': 1},
+                     {'miasto_nazwa': ''}, {'miasto_nazwa': ' '}, {'miasto_nazwa': 'x'*201}):
+            self.assertEqual(self.client.put('/api/towns/1', json=data).status_code, 400)
+        self.assertEqual(self.client.put('/api/towns/1', json={'miasto_nazwa': ' kRAKÓW '}).status_code, 409)
+        self.assertEqual(self.client.get('/api/card/1').get_json()['miasto_nazwa'], 'Lublin')
+        self.assertEqual(self.client.get('/towns/999/edit').status_code, 404)
+        self.assertEqual(self.client.put('/api/towns/999', json={'miasto_nazwa': 'Test'}).status_code, 404)
+        self.assertEqual(self.client.put('/api/towns/1', json={'miasto_nazwa': 'Łódź'}).status_code, 200)
+        # Ponowny zapis własnej nazwy nie jest duplikatem.
+        self.assertEqual(self.client.put('/api/towns/1', json={'miasto_nazwa': 'Łódź'}).status_code, 200)
+        page = self.client.get('/towns', query_string={'q': ' łÓDŹ '}).get_data(as_text=True)
+        self.assertIn('Łódź', page)
+        self.assertNotIn('Kraków', page)
+        self.assertIn('/?miasto_id=1', page)
+        self.assertIn('Nie znaleziono miejscowości.', self.client.get('/towns?q=brak').get_data(as_text=True))
+        name = '<script>alert(1)</script>'
+        self.assertEqual(self.client.put('/api/towns/1', json={'miasto_nazwa': name}).status_code, 200)
+        for path in ('/towns', '/towns/1/edit'):
+            page = self.client.get(path).get_data(as_text=True)
+            self.assertIn('&lt;script&gt;', page)
+            self.assertNotIn(name, page)
+
+    def test_town_write_failure_preserves_data(self):
+        self.login('demo-admin')
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("CREATE TRIGGER reject_town BEFORE UPDATE ON miasta BEGIN SELECT RAISE(ABORT, 'test'); END;")
+        self.assertEqual(self.client.put('/api/towns/1', json={'miasto_nazwa': 'Test'}).status_code, 500)
+        self.assertEqual(self.client.get('/api/card/1').get_json()['miasto_nazwa'], 'Lublin')
+
     def test_photographer_edit_permissions_and_shared_data(self):
         data = {'autor_nazwa': 'Jan Fotograf', 'alias': 'J. Fotograf',
                 'autor_lata': '1890–1965', 'autor_url': 'https://example.org/biogram'}

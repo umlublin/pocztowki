@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edycja miejscowości — {{ town.miasto_nazwa }}</title>
+    {% include 'photographers_style.html' %}
+</head>
+<body>
+{% include 'session_header.html' %}
+<main>
+    <a href="{{ url_for('towns') }}">← Lista miejscowości</a>
+    <h1>Edycja miejscowości</h1>
+    <p>Zmiana nazwy dotyczy wszystkich pocztówek przypisanych do tej miejscowości.</p>
+    <form id="town-form" action="{{ url_for('update_town', town_id=town.miasto_id) }}">
+        <div class="field">
+            <label for="miasto_nazwa">Nazwa miejscowości (wymagana)</label>
+            <input id="miasto_nazwa" name="miasto_nazwa" value="{{ town.miasto_nazwa or '' }}" required maxlength="200">
+        </div>
+        <div class="actions"><button type="submit" id="save-button">Zapisz zmiany</button><a href="{{ url_for('towns') }}">Anuluj</a></div>
+        <p id="save-status" role="status" aria-live="polite"></p>
+    </form>
+</main>
+<script>
+    const form = document.getElementById('town-form');
+    const status = document.getElementById('save-status');
+    const button = document.getElementById('save-button');
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        button.disabled = true;
+        status.textContent = 'Zapisywanie…';
+        try {
+            const response = await fetch(form.action, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(Object.fromEntries(new FormData(form))),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Nie udało się zapisać zmian.');
+            status.textContent = 'Zapisano zmiany.';
+        } catch (error) {
+            status.textContent = error.message || 'Błąd połączenia. Spróbuj ponownie.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
