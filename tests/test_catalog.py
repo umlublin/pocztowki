@@ -40,6 +40,62 @@ class CatalogTest(unittest.TestCase):
         with self.client.session_transaction() as session:
             session['user'] = {'userinfo': {'sub': user_id, 'nickname': 'Jan & Ola'}}
 
+    def post_scans(self, *names):
+        return self.client.post('/api/cards/import', data={
+            'files': [(io.BytesIO((self.images / '1.jpg').read_bytes()), name) for name in names],
+        })
+
+    def test_import_pairs_reuses_pattern_and_numbers_files(self):
+        front = 'prl_1337 Fragment parku.jpg'
+        reverse = 'prl_1338 27-6 0 A-43 +Puławy @E.Hartwig.jpg'
+        self.assertEqual(self.post_scans(front, reverse).status_code, 403)
+        self.login('demo-admin')
+        self.database.unlink()
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.executescript((Path(server.app.root_path) / 'schema.sql').read_text(encoding='utf-8'))
+            db.execute("INSERT INTO autorzy (autor_id, autor_nazwa, aliases) VALUES (1, 'Edward Hartwig', 'E.Hartwig')")
+            db.execute("""INSERT INTO miasta (miasto_id, miasto_nazwa, "default")
+                          VALUES (1, 'Lublin', 1), (3, 'Puławy', 0)""")
+            db.execute("INSERT INTO wydawcy VALUES (27, 'Wydawca')")
+            db.execute("INSERT INTO cenzura (cenzura_id, cenzura_numer, year_from) VALUES (2, 'A-43', '1960')")
+        (self.images / '9.jpg').write_bytes(b'existing scan')
+        response = self.post_scans(
+            'inne_1342 27-7 5k A-43 @E.Hartwig.jpg', reverse,
+            'inne_1341 Panorama.jpg', front,
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        first, second = response.get_json()['wydania']
+        first_card = self.client.get(f'/api/card/{first}').get_json()
+        second_card = self.client.get(f'/api/card/{second}').get_json()
+        self.assertEqual(
+            [first_card[key] for key in ('wzor_numer', 'wzor_opis', 'miasto_id', 'autor_id',
+                                         'wydawca_id', 'cenzura_id', 'wydanie_naklad', 'awers_id', 'rewers_id')],
+            [6, 'Fragment parku', 3, 1, 27, 2, 0, 10, 11],
+        )
+        self.assertEqual((second_card['miasto_id'], second_card['wydanie_naklad']), (1, 5000))
+        self.assertEqual((self.images / '9.jpg').read_bytes(), b'existing scan')
+        self.assertTrue(all((self.images / f'{number}.jpg').exists() for number in range(10, 14)))
+        response = self.post_scans('prl_1337 Inny opis.jpg', reverse)
+        self.assertEqual(response.status_code, 201)
+        repeated = self.client.get(f"/api/card/{response.get_json()['wydania'][0]}").get_json()
+        self.assertEqual(repeated['wzor_id'], first_card['wzor_id'])
+        self.assertEqual(repeated['wzor_opis'], 'Fragment parku')
+
+    def test_import_rolls_back_batch_when_later_pair_fails(self):
+        self.login('demo-admin')
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("UPDATE autorzy SET alias = 'J.K.' WHERE autor_id = 1")
+        response = self.post_scans(
+            'scan1 Opis.jpg', 'scan2 1-1 1000 D1 @J.K..jpg',
+            'scan3 Opis.jpg', 'scan4 1-2 0 D1 @Brak.jpg',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Brak', response.get_json()['error'])
+        with closing(sqlite3.connect(self.database)) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM wydanie').fetchone()[0], 12)
+            self.assertEqual(db.execute('SELECT count(*) FROM wzory').fetchone()[0], 2)
+        self.assertEqual({path.name for path in self.images.glob('*.jpg')}, {'1.jpg', '2.jpg'})
+
     def test_town_permissions_and_shared_data(self):
         data = {'miasto_nazwa': ' Nowy Lublin '}
         self.assertEqual(self.client.get('/towns').status_code, 200)

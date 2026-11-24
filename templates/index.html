@@ -139,6 +139,11 @@
         </form>
     </header>
 
+    {% if user.is_admin %}
+    <p>Przeciągnij na tę stronę pary plików JPG, aby dodać pocztówki.</p>
+    <p id="importStatus" role="status"></p>
+    {% endif %}
+
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -345,6 +350,49 @@
         form.after(message);
     });
     filtersReady.then(restoreSearch);
+
+    {% if user.is_admin %}
+    const importStatus = document.getElementById('importStatus');
+    let importing = false;
+    window.addEventListener('dragover', event => {
+        if (!event.dataTransfer.types.includes('Files')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = importing ? 'none' : 'copy';
+    });
+    window.addEventListener('drop', async event => {
+        const files = Array.from(event.dataTransfer.files);
+        if (!files.length) return;
+        event.preventDefault();
+        if (importing) return;
+        if (files.length % 2 || files.some(file => !/\.jpg$/i.test(file.name))) {
+            importStatus.textContent = 'Upuść pary plików JPG: po jednym awersie i rewersie.';
+            return;
+        }
+        const body = new FormData();
+        for (const file of files) body.append('files', file);
+        importing = true;
+        importStatus.textContent = 'Importowanie pocztówek…';
+        try {
+            const response = await fetch({{ url_for('import_cards')|tojson }}, {method: 'POST', body});
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Import nie powiódł się.');
+            importStatus.textContent = 'Dodane wydania: ';
+            result.wydania.forEach((id, index) => {
+                if (index) importStatus.append(', ');
+                const link = document.createElement('a');
+                link.href = `/view/${id}`;
+                link.textContent = id;
+                importStatus.append(link);
+            });
+            await filtersReady;
+            startSearch(activeFilters);
+        } catch (error) {
+            importStatus.textContent = error instanceof SyntaxError ? 'Import nie powiódł się.' : error.message;
+        } finally {
+            importing = false;
+        }
+    });
+    {% endif %}
     </script>
 
 </body>
