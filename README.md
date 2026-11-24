@@ -26,7 +26,23 @@ Katalog będzie dostępny pod `http://localhost:5000`. Skrypt tworzy przykładow
 
 Miniatury w `images/thumbnails/` są odtwarzalne. Aplikacja używa osobnej wersji miniatury po zmianie pliku źródłowego. Starsze wersje można usunąć podczas postoju aplikacji.
 
-## Testy
+## Eksport schematu aktualnej bazy
+
+Z katalogu repozytorium uruchom na maszynie mającej dostęp do właściwej bazy:
+
+```sh
+python3 export_schema.py /sciezka/do/instance/pocztowki.db schema.sql
+```
+
+Skrypt otwiera bazę wyłącznie do odczytu. Zapisuje definicje tabel (z kolumnami
+i ograniczeniami), indeksów, widoków i wyzwalaczy; pomija rekordy i wewnętrzne
+obiekty `sqlite_*`. Nie nadpisuje istniejącego pliku wyjściowego.
+Definicje SQL mogą zawierać komentarze i wartości domyślne — sprawdź plik przed
+udostępnieniem. Udostępnij wygenerowany `schema.sql` w czacie lub dodaj go do
+repozytorium, aby można było sprawdzić rzeczywisty schemat, w tym pole `aliases`.
+Eksport bazy demonstracyjnej opisuje tylko bazę demonstracyjną.
+
+## Testy automatyczne
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
