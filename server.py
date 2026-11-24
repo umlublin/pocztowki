@@ -5,6 +5,7 @@ from authlib.integrations.flask_client import OAuth
 import sqlite3
 import os
 import re
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from os import environ as env
 from flask import Flask, redirect, render_template, request, g, send_from_directory, abort, jsonify,session
@@ -603,6 +604,140 @@ def api_card_update(wydanie_id):
     finally:
         if conn is not None and conn.in_transaction:
             conn.rollback()
+
+SCAN_FILENAME = re.compile(r'.*?(?<![0-9])(?P<number>[0-9]{1,19})\s+(?P<label>.+)\.jpg',
+                           re.IGNORECASE)
+REVERSE_LABEL = re.compile(
+    r'(?P<publisher>[0-9]{1,19})-(?P<pattern>[0-9]{1,19})\s+'
+    r'(?P<print_run>[0-9]{1,19})(?P<thousands>k)?\s+(?P<censorship>[^\s+@]+)\s+'
+    r'(?:\+(?P<town>[^@]+?)\s+)?@(?P<author>.+)', re.IGNORECASE,
+)
+
+
+def read_postcard_scans(files):
+    if not files or len(files) % 2:
+        raise ValueError('Upuść pary plików JPG: po jednym awersie i rewersie.')
+    scans = []
+    numbers = set()
+    for file in files:
+        match = SCAN_FILENAME.fullmatch(file.filename or '')
+        if not match or not match['label'].strip():
+            raise ValueError(f'Nieprawidłowa nazwa pliku: {file.filename}.')
+        number = int(match['number'])
+        if number in numbers:
+            raise ValueError(f'Powtarza się numer skanu {number}.')
+        numbers.add(number)
+        scans.append((number, file, match['label'].strip()))
+
+    scans.sort(key=lambda scan: scan[0])
+    pairs = []
+    for front, reverse in zip(scans[::2], scans[1::2]):
+        metadata = REVERSE_LABEL.fullmatch(reverse[2])
+        if not metadata or not metadata['author'].strip():
+            raise ValueError(f'Nieprawidłowe dane rewersu: {reverse[1].filename}.')
+        print_run = int(metadata['print_run']) * (1000 if metadata['thousands'] else 1)
+        if max(print_run, int(metadata['publisher']), int(metadata['pattern'])) > SQLITE_MAX_INTEGER:
+            raise ValueError(f'Za duża wartość liczbowa w nazwie: {reverse[1].filename}.')
+        for _, file, _ in (front, reverse):
+            try:
+                with Image.open(file.stream) as image:
+                    if image.format != 'JPEG':
+                        raise ValueError('Nie jest to plik JPEG.')
+                    image.load()
+            except (OSError, ValueError, Image.DecompressionBombError) as error:
+                raise ValueError(f'Nie można odczytać pliku JPG: {file.filename}.') from error
+            file.stream.seek(0)
+        pairs.append((front[1], reverse[1], front[2], metadata, print_run))
+    return pairs
+
+
+def import_reference(rows, field, value, label):
+    identifiers = [row[0] for row in rows
+                   if (row[field] or '').strip().casefold() == value.strip().casefold()]
+    if len(identifiers) != 1:
+        raise ValueError(f'Oczekiwano jednego wpisu dla {label}: {value}.')
+    return identifiers[0]
+
+
+@app.route('/api/cards/import', methods=['POST'])
+def import_cards():
+    if not get_user_data().get('is_admin'):
+        return jsonify({'error': 'Import wymaga uprawnień administratora.'}), 403
+
+    try:
+        pairs = read_postcard_scans(request.files.getlist('files'))
+        conn = get_db()
+        image_folder = Path(IMAGE_FOLDER)
+        image_folder.mkdir(parents=True, exist_ok=True)
+        saved = []
+        editions = []
+        with conn:
+            conn.execute('BEGIN IMMEDIATE')
+            try:
+                existing_max = conn.execute(
+                    'SELECT max(coalesce(max(awers_id), 0), coalesce(max(rewers_id), 0)) FROM wydanie'
+                ).fetchone()[0]
+                disk_max = max((int(path.stem) for path in image_folder.iterdir()
+                                if re.fullmatch(r'[0-9]+\.jpg', path.name, re.IGNORECASE)), default=0)
+                next_id = max(existing_max, disk_max) + 1
+                if next_id + 2 * len(pairs) - 1 > SQLITE_MAX_INTEGER:
+                    raise ValueError('Brak wolnych numerów skanów.')
+                author_columns = {row['name'] for row in conn.execute('PRAGMA table_info(autorzy)')}
+                alias = 'aliases' if 'aliases' in author_columns else 'alias'
+                authors = conn.execute(f'SELECT autor_id, {alias} FROM autorzy').fetchall()
+                towns = conn.execute('SELECT * FROM miasta').fetchall()
+                censorship = conn.execute('SELECT cenzura_id, cenzura_numer FROM cenzura').fetchall()
+
+                for front, reverse, description, metadata, print_run in pairs:
+                    publisher = int(metadata['publisher'])
+                    if conn.execute('SELECT 1 FROM wydawcy WHERE wydawca_id = ?', (publisher,)).fetchone() is None:
+                        raise ValueError(f'Nie znaleziono wydawcy {publisher}.')
+                    author = import_reference(authors, alias, metadata['author'], 'podpisu fotografa')
+                    censor = import_reference(censorship, 'cenzura_numer', metadata['censorship'], 'znaku cenzury')
+                    if metadata['town'] is None:
+                        defaults = [row['miasto_id'] for row in towns
+                                    if 'default' in row.keys() and row['default'] in (True, '1', 'true')]
+                        if len(defaults) != 1:
+                            raise ValueError('Ustaw dokładnie jedną domyślną miejscowość lub podaj ją po +.')
+                        town = defaults[0]
+                    else:
+                        town = import_reference(towns, 'miasto_nazwa', metadata['town'], 'miejscowości')
+
+                    number = int(metadata['pattern'])
+                    pattern = conn.execute(
+                        'SELECT wzor_id FROM wzory WHERE wydawca_id = ? AND wzor_numer = ? '
+                        'ORDER BY wzor_id LIMIT 1', (publisher, number),
+                    ).fetchone()
+                    pattern_id = pattern['wzor_id'] if pattern else conn.execute(
+                        'INSERT INTO wzory (wydawca_id, wzor_numer, autor_id, miasto_id, wzor_opis) '
+                        'VALUES (?, ?, ?, ?, ?)', (publisher, number, author, town, description),
+                    ).lastrowid
+                    edition = conn.execute(
+                        'INSERT INTO wydanie (wzor_id, cenzura_id, wydanie_naklad, awers_id, rewers_id, '
+                        "wydanie_numer, wydanie_rok) VALUES (?, ?, ?, ?, ?, '', 0)",
+                        (pattern_id, censor, print_run, next_id, next_id + 1),
+                    )
+                    editions.append(edition.lastrowid)
+                    for file in (front, reverse):
+                        path = image_folder / f'{next_id}.jpg'
+                        with NamedTemporaryFile(dir=image_folder) as temp:
+                            file.save(temp)
+                            temp.flush()
+                            os.link(temp.name, path)
+                            saved.append(path)
+                        next_id += 1
+                conn.commit()
+            except BaseException:
+                for path in saved:
+                    path.unlink(missing_ok=True)
+                raise
+        return jsonify({'wydania': editions}), 201
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+    except (sqlite3.Error, OSError):
+        app.logger.exception('Nie udało się zaimportować pocztówek')
+        return jsonify({'error': 'Nie udało się zapisać importu.'}), 500
+
 
 # --- Widoki HTML (Statyczne kontenery) ---
 

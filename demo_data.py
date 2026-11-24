@@ -16,7 +16,9 @@ def create_demo_data(root):
 
     with closing(sqlite3.connect(root / 'instance' / 'pocztowki.db')) as db, db:
         db.executescript("""
-            CREATE TABLE miasta (miasto_id INTEGER PRIMARY KEY, miasto_nazwa TEXT);
+            CREATE TABLE miasta (
+                miasto_id INTEGER PRIMARY KEY, miasto_nazwa TEXT, "default" BOOLEAN DEFAULT FALSE
+            );
             CREATE TABLE autorzy (
                 autor_id INTEGER PRIMARY KEY, autor_nazwa TEXT, autor_lata TEXT, autor_url TEXT,
                 alias TEXT
@@ -34,7 +36,7 @@ def create_demo_data(root):
                 wydanie_tag TEXT, wydanie_cenzura TEXT, cenzura_id INTEGER REFERENCES cenzura,
                 wydanie_zamowienie TEXT, awers_id INTEGER, rewers_id INTEGER
             );
-            INSERT INTO miasta VALUES (1, 'Lublin'), (2, 'Kraków');
+            INSERT INTO miasta VALUES (1, 'Lublin', TRUE), (2, 'Kraków', FALSE);
             INSERT INTO autorzy (autor_id, autor_nazwa) VALUES (1, 'Jan Kowalski'), (2, 'Anna Nowak');
             INSERT INTO wydawcy VALUES (1, 'Wydawca demonstracyjny');
             INSERT INTO cenzura VALUES (1, 'D1');
