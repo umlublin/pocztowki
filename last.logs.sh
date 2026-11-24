@@ -1,1 +1,1 @@
-journalctl -u pocztowki -n 100
+journalctl -u pocztowki -n 50

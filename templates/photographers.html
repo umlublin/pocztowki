@@ -9,8 +9,7 @@
 <body>
 {% include 'session_header.html' %}
 <main>
-    <h1>Fotografowie</h1>
-    <p>Autorzy fotografii na pocztówkach.</p>
+    <h1>Autorzy fotografii na pocztówkach.</h1>
     <form method="get" class="search">
         <label for="q">Nazwisko lub podpis</label>
         <input id="q" name="q" type="search" value="{{ query }}">
@@ -26,7 +25,7 @@
             <tbody>
             {% for author in authors %}
                 <tr>
-                    <td><a href="{{ url_for('index', autor_id=author.autor_id) }}">{{ author.autor_nazwa or 'Nieznany' }} ({{ author.autor_count}})</a></td>
+                    <td><a href="{{ url_for('index', autor_id=author.autor_id) }}">{{ author.autor_nazwa or 'Nieznany' }}</a> ({{ author.autor_count}})</td>
                     <td>{{ author.aliases or '—' }}</td>
                     <td>{{ author.autor_lata or '—' }}</td>
                     <td>{% if author.autor_url and author.autor_url.lower().startswith(('https://', 'http://')) %}<a href="{{ author.autor_url }}" target="_blank" rel="noopener noreferrer">Biogram<span class="sr-only">: {{ author.autor_nazwa }} (nowa karta)</span></a>{% else %}—{% endif %}</td>
